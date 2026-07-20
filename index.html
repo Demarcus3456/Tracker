@@ -396,6 +396,8 @@
     border:1.5px solid var(--ink); box-shadow:0 8px 20px rgba(28,30,38,0.15);
   }
   .placeHero img{width:100%; height:100%; object-fit:cover; display:block;}
+  .placeVideoWrap{width:100%; aspect-ratio:16/9; border-radius:14px; overflow:hidden; background:#000; border:1.5px solid var(--ink);}
+  .placeVideoWrap iframe, .placeVideoWrap video{width:100%; height:100%; border:none; display:block;}
 
   .cdBanner{
     display:flex; gap:14px; align-items:center; margin:0 0 16px; padding:16px;
@@ -1297,6 +1299,14 @@
       </div>
     </div>
     <div class="field">
+      <label>Hours (optional)</label>
+      <textarea id="placeHours" placeholder="e.g. Mon-Thu 10am-9pm, Fri-Sat 10am-11pm, Sun 10am-9pm"></textarea>
+    </div>
+    <div class="field">
+      <label>Video Link (optional)</label>
+      <input type="text" id="placeVideoUrl" placeholder="YouTube, Vimeo, or direct video URL">
+    </div>
+    <div class="field">
       <label>Notes</label>
       <textarea id="placeNotes" placeholder="Why you want to go, details..."></textarea>
     </div>
@@ -1324,6 +1334,10 @@
   <div class="sheet">
     <div id="placeDetailHero" class="placeHero" style="display:none;"></div>
     <div id="placeDetailBanner" class="cdBanner"></div>
+    <div class="field" id="placeDetailVideoField" style="display:none;">
+      <label>Video</label>
+      <div id="placeDetailVideo" class="placeVideoWrap"></div>
+    </div>
     <div class="field" id="placeDetailMapField" style="display:none;">
       <label>Address</label>
       <a id="placeDetailMapLink" href="#" target="_blank" rel="noopener" class="mediaBtn" style="display:block; text-align:left; text-decoration:none;"></a>
@@ -1331,6 +1345,10 @@
     <div class="field" id="placeDetailWhenField" style="display:none;">
       <label>Date & Time</label>
       <div id="placeDetailWhen" style="font-size:14.5px; color:var(--text);"></div>
+    </div>
+    <div class="field" id="placeDetailHoursField" style="display:none;">
+      <label>Hours</label>
+      <div id="placeDetailHours" style="font-size:13.5px; color:var(--text-dim); line-height:1.5; white-space:pre-line;"></div>
     </div>
     <div class="field" id="placeDetailNotesField" style="display:none;">
       <label>Notes</label>
@@ -1772,7 +1790,7 @@ let datingPlaces = [];
 let travelPlaces = [];
 let currentPlacesKind = 'dating';
 let editingPlaceId = null;
-let placeDraft = {name:'', location:'', notes:'', visited:false, image:null, dateTime:''};
+let placeDraft = {name:'', location:'', notes:'', visited:false, image:null, dateTime:'', hours:'', videoUrl:''};
 
 let savingsGoals = [];
 let editingSavingsId = null;
@@ -2872,7 +2890,7 @@ function renderCalendar(){
     const kindColor = e.kind === 'dating' ? '#b85c8f' : '#4a7ba6';
     return `
       <div class="invRow" data-id="${e.place.id}" data-kind="${e.kind}" style="align-items:center;">
-        ${e.place.image ? `<img src="${e.place.image}" alt="" style="width:38px; height:38px; border-radius:9px; object-fit:cover; flex:0 0 38px;">` : ''}
+        ${e.place.image ? `<img src="${e.place.image}" alt="" style="width:66px; height:66px; border-radius:12px; object-fit:cover; flex:0 0 66px;">` : ''}
         <div style="flex:1; min-width:0;">
           <div class="invRow-name">${escapeHtml(e.place.name)}</div>
           <div style="font-family:'JetBrains Mono',monospace; font-size:10px; text-transform:uppercase; color:${kindColor};">${kindLabel}</div>
@@ -2904,7 +2922,7 @@ function renderPlacesList(){
   }
   el.innerHTML = list.map(p => `
     <div class="invRow" data-id="${p.id}" style="${p.visited ? 'opacity:0.55;' : ''} align-items:center;">
-      ${p.image ? `<img src="${p.image}" alt="" style="width:38px; height:38px; border-radius:9px; object-fit:cover; flex:0 0 38px;">` : ''}
+      ${p.image ? `<img src="${p.image}" alt="" style="width:66px; height:66px; border-radius:12px; object-fit:cover; flex:0 0 66px;">` : ''}
       <span class="invRow-name">${p.visited ? '\u2705 ' : ''}${escapeHtml(p.name)}</span>
     </div>
   `).join('');
@@ -2969,6 +2987,23 @@ function openPlaceDetail(id){
   `;
   document.getElementById('placeDetailEditBtn').addEventListener('click', ()=> openPlaceEdit(p.id));
 
+  const videoField = document.getElementById('placeDetailVideoField');
+  const videoEl = document.getElementById('placeDetailVideo');
+  if(p.videoUrl){
+    const ytId = getYouTubeId(p.videoUrl);
+    if(ytId){
+      videoEl.innerHTML = `<iframe src="https://www.youtube.com/embed/${ytId}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+    }else if(isDirectVideoUrl(p.videoUrl)){
+      videoEl.innerHTML = `<video src="${escapeAttr(p.videoUrl)}" controls playsinline></video>`;
+    }else{
+      videoEl.innerHTML = `<div style="padding:16px; color:#fff; font-size:13px;">Can't preview this link directly — <a href="${escapeAttr(p.videoUrl)}" target="_blank" rel="noopener" style="color:var(--teal);">open it here</a>.</div>`;
+    }
+    videoField.style.display = 'block';
+  }else{
+    videoEl.innerHTML = '';
+    videoField.style.display = 'none';
+  }
+
   const mapField = document.getElementById('placeDetailMapField');
   if(p.location){
     mapField.style.display = 'block';
@@ -2985,6 +3020,14 @@ function openPlaceDetail(id){
     document.getElementById('placeDetailWhen').textContent = formatPlaceDateTime(p.dateTime);
   }else{
     whenField.style.display = 'none';
+  }
+
+  const hoursField = document.getElementById('placeDetailHoursField');
+  if(p.hours){
+    hoursField.style.display = 'block';
+    document.getElementById('placeDetailHours').textContent = p.hours;
+  }else{
+    hoursField.style.display = 'none';
   }
 
   const notesField = document.getElementById('placeDetailNotesField');
@@ -3041,11 +3084,13 @@ document.getElementById('placeMapBtn').addEventListener('click', ()=>{
 
 function openPlaceAdd(){
   editingPlaceId = null;
-  placeDraft = {name:'', location:'', notes:'', visited:false, image:null, dateTime:''};
+  placeDraft = {name:'', location:'', notes:'', visited:false, image:null, dateTime:'', hours:'', videoUrl:''};
   document.getElementById('placeSheetTitle').textContent = 'Add Place';
   document.getElementById('placeName').value = '';
   document.getElementById('placeLocation').value = '';
   document.getElementById('placeNotes').value = '';
+  document.getElementById('placeHours').value = '';
+  document.getElementById('placeVideoUrl').value = '';
   document.getElementById('placeDateTime').value = '';
   document.getElementById('placeVisited').checked = false;
   document.getElementById('placeLocationLabel').textContent = currentPlacesKind === 'dating' ? 'Location' : 'Country';
@@ -3062,11 +3107,13 @@ function openPlaceEdit(id){
   const p = list.find(x=>x.id===id);
   if(!p) return;
   editingPlaceId = id;
-  placeDraft = {name:p.name, location:p.location||'', notes:p.notes||'', visited:!!p.visited, image:p.image||null, dateTime:p.dateTime||''};
+  placeDraft = {name:p.name, location:p.location||'', notes:p.notes||'', visited:!!p.visited, image:p.image||null, dateTime:p.dateTime||'', hours:p.hours||'', videoUrl:p.videoUrl||''};
   document.getElementById('placeSheetTitle').textContent = 'Edit Place';
   document.getElementById('placeName').value = p.name;
   document.getElementById('placeLocation').value = p.location || '';
   document.getElementById('placeNotes').value = p.notes || '';
+  document.getElementById('placeHours').value = p.hours || '';
+  document.getElementById('placeVideoUrl').value = p.videoUrl || '';
   document.getElementById('placeDateTime').value = p.dateTime || '';
   document.getElementById('placeVisited').checked = !!p.visited;
   document.getElementById('placeLocationLabel').textContent = currentPlacesKind === 'dating' ? 'Location' : 'Country';
@@ -3090,6 +3137,8 @@ document.getElementById('placeSave').addEventListener('click', async ()=>{
   if(!name){ document.getElementById('placeName').focus(); return; }
   const location = document.getElementById('placeLocation').value.trim();
   const notes = document.getElementById('placeNotes').value.trim();
+  const hours = document.getElementById('placeHours').value.trim();
+  const videoUrl = document.getElementById('placeVideoUrl').value.trim();
   const dateTime = document.getElementById('placeDateTime').value.trim();
   const visited = document.getElementById('placeVisited').checked;
   const image = placeDraft.image || null;
@@ -3097,9 +3146,9 @@ document.getElementById('placeSave').addEventListener('click', async ()=>{
   const list = getPlacesArray(currentPlacesKind);
   if(editingPlaceId){
     const p = list.find(x=>x.id===editingPlaceId);
-    p.name = name; p.location = location; p.notes = notes; p.visited = visited; p.image = image; p.dateTime = dateTime;
+    p.name = name; p.location = location; p.notes = notes; p.visited = visited; p.image = image; p.dateTime = dateTime; p.hours = hours; p.videoUrl = videoUrl;
   }else{
-    list.push({id: uid('pl'), name, location, notes, visited, image, dateTime, addedAt: Date.now()});
+    list.push({id: uid('pl'), name, location, notes, visited, image, dateTime, hours, videoUrl, addedAt: Date.now()});
   }
   await savePlacesFor(currentPlacesKind);
   document.getElementById('placeOverlay').classList.remove('open');
