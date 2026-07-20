@@ -1386,6 +1386,7 @@
     <div class="field" id="placeDetailVideoField" style="display:none;">
       <label>Video</label>
       <div id="placeDetailVideo" class="placeVideoWrap"></div>
+      <div id="placeDetailVideoFallback" style="font-size:11px; color:var(--text-dim); margin-top:8px; display:none;"></div>
     </div>
     <div class="field" id="placeDetailNotesField" style="display:none;">
       <label>Notes</label>
@@ -1826,6 +1827,7 @@ let recipesSubTab = 'inventory';
 let datingPlaces = [];
 let travelPlaces = [];
 let currentPlacesKind = 'dating';
+let currentPlaceDetailId = null;
 let editingPlaceId = null;
 const HOURS_DAYS = [
   {key:'sun', label:'Sun'}, {key:'mon', label:'Mon'}, {key:'tue', label:'Tue'}, {key:'wed', label:'Wed'},
@@ -2554,6 +2556,25 @@ function extractInstructionsText(field){
   return '';
 }
 
+// Facebook's video embed plugin needs the canonical reel/video URL, not a /share/ redirect link.
+// Resolve it via the proxy by reading the canonical/og:url meta tag from the redirected page.
+async function resolveFacebookVideoUrl(url){
+  if(!/\/share\//.test(url)) return url;
+  try{
+    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+    const res = await fetch(proxyUrl);
+    if(!res.ok) return url;
+    const html = await res.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const canonical = doc.querySelector('link[rel="canonical"]')?.getAttribute('href')
+      || doc.querySelector('meta[property="og:url"]')?.getAttribute('content');
+    return canonical || url;
+  }catch(e){
+    console.error('Facebook share link resolve failed', e);
+    return url;
+  }
+}
+
 async function fetchImageFromUrl(imgUrl, baseUrl){
   const absUrl = new URL(imgUrl, baseUrl).href;
   const imgRes = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(absUrl));
@@ -3070,6 +3091,7 @@ function openPlaceDetail(id){
   const p = list.find(x=>x.id===id);
   if(!p) return;
   editingPlaceId = id;
+  currentPlaceDetailId = id;
 
   const heroEl = document.getElementById('placeDetailHero');
   if(p.image){
@@ -3103,6 +3125,9 @@ function openPlaceDetail(id){
 
   const videoField = document.getElementById('placeDetailVideoField');
   const videoEl = document.getElementById('placeDetailVideo');
+  const videoFallback = document.getElementById('placeDetailVideoFallback');
+  videoFallback.style.display = 'none';
+  videoFallback.innerHTML = '';
   if(p.videoUrl){
     const ytId = getYouTubeId(p.videoUrl);
     if(ytId){
@@ -3110,7 +3135,13 @@ function openPlaceDetail(id){
     }else if(isDirectVideoUrl(p.videoUrl)){
       videoEl.innerHTML = `<video src="${escapeAttr(p.videoUrl)}" controls playsinline></video>`;
     }else if(isFacebookUrl(p.videoUrl)){
-      videoEl.innerHTML = `<iframe src="https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(p.videoUrl)}&show_text=false" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" allowfullscreen></iframe>`;
+      videoEl.innerHTML = `<div style="display:flex; align-items:center; justify-content:center; height:100%; color:#fff; font-size:12px;">Loading video…</div>`;
+      videoFallback.innerHTML = `If it doesn't play (private or restricted video), <a href="${escapeAttr(p.videoUrl)}" target="_blank" rel="noopener" style="color:var(--teal);">open it on Facebook</a> instead.`;
+      videoFallback.style.display = 'block';
+      resolveFacebookVideoUrl(p.videoUrl).then(resolvedUrl=>{
+        if(currentPlaceDetailId !== p.id) return; // user navigated away already
+        videoEl.innerHTML = `<iframe src="https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(resolvedUrl)}&show_text=false" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" allowfullscreen></iframe>`;
+      });
     }else{
       videoEl.innerHTML = `<div style="padding:16px; color:#fff; font-size:13px;">Can't preview this link directly — <a href="${escapeAttr(p.videoUrl)}" target="_blank" rel="noopener" style="color:var(--teal);">open it here</a>.</div>`;
     }
