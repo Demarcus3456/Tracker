@@ -125,6 +125,7 @@
   #buylistCatOverlay{z-index:43;}
   #infoCatOverlay{z-index:43;}
   #invItemOverlay{z-index:43;}
+  #placeOverlay{z-index:43;}
   #recipeOverlay{z-index:45;}
   #recipeDetailOverlay{z-index:44;}
   #recipeStepOverlay{z-index:46;}
@@ -1241,6 +1242,50 @@
   </div>
 </div>
 
+<div class="sheet-overlay" id="placesHomeOverlay">
+  <div class="sheet">
+    <h2 id="placesHomeTitle">Places</h2>
+    <div class="mediaBtnRow">
+      <button type="button" class="btn-save" id="placesAddBtn" style="flex:1; border-radius:16px;">+ Add Place</button>
+    </div>
+    <div id="placesListEl" style="margin-top:14px;"></div>
+    <div class="sheet-actions">
+      <button class="btn-cancel" id="placesHomeClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet-overlay" id="placeOverlay">
+  <div class="sheet">
+    <h2 id="placeSheetTitle">Add Place</h2>
+    <div class="field">
+      <label>Name</label>
+      <input type="text" id="placeName" placeholder="e.g. Rooftop Bar">
+    </div>
+    <div class="field">
+      <label id="placeLocationLabel">Location</label>
+      <input type="text" id="placeLocation" placeholder="e.g. Downtown">
+    </div>
+    <div class="field">
+      <label>Notes</label>
+      <textarea id="placeNotes" placeholder="Why you want to go, details..."></textarea>
+    </div>
+    <div class="field">
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer; text-transform:none; font-family:'Inter',sans-serif; font-size:15px; color:var(--text); letter-spacing:0;">
+        <input type="checkbox" id="placeVisited" style="width:20px; height:20px; accent-color:var(--amber);">
+        Already visited
+      </label>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-cancel" id="placeCancel">Cancel</button>
+      <button class="btn-save" id="placeSave">Add Place</button>
+    </div>
+    <div class="sheet-actions" id="placeDeleteRow" style="display:none;">
+      <button class="btn-delete" id="placeDelete">Delete Place</button>
+    </div>
+  </div>
+</div>
+
 <div class="sheet-overlay" id="recipesHomeOverlay">
   <div class="sheet">
     <h2>Recipes</h2>
@@ -1519,6 +1564,8 @@ async function pushAllToCloud(){
       infoCategories,
       inventory: recipeInventory,
       recipes,
+      datingPlaces,
+      travelPlaces,
       savings: savingsGoals,
       level: {level: roadmapLevel, xp: roadmapXP},
       stats: roadmapStats,
@@ -1546,13 +1593,15 @@ async function pullFromCloud(){
       if(data.infoCategories) infoCategories = data.infoCategories;
       if(data.inventory) recipeInventory = data.inventory;
       if(data.recipes) recipes = data.recipes;
+      if(data.datingPlaces) datingPlaces = data.datingPlaces;
+      if(data.travelPlaces) travelPlaces = data.travelPlaces;
       if(data.savings) savingsGoals = data.savings;
       if(data.level){
         roadmapLevel = data.level.level || 1;
         roadmapXP = data.level.xp || 0;
       }
       if(data.stats && data.stats.length) roadmapStats = data.stats;
-      await saveItems(); await saveCategories(); await saveCards(); await saveRewards(); await saveBuylist(); await saveBuylistCats(); await saveInfoCats(); await saveInventory(); await saveRecipes(); await saveSavings(); await saveLevel(); await saveStats();
+      await saveItems(); await saveCategories(); await saveCards(); await saveRewards(); await saveBuylist(); await saveBuylistCats(); await saveInfoCats(); await saveInventory(); await saveRecipes(); await saveDatingPlaces(); await saveTravelPlaces(); await saveSavings(); await saveLevel(); await saveStats();
       render(); renderGoals(); renderLevelPlaque(); renderRewards(); renderBuylist(); renderSavings(); renderInfoGrid();
     }else{
       await pushAllToCloud();
@@ -1663,6 +1712,12 @@ let currentRecipeSteps = [];
 let currentStepIndex = 0;
 let recipesSubTab = 'inventory';
 
+let datingPlaces = [];
+let travelPlaces = [];
+let currentPlacesKind = 'dating';
+let editingPlaceId = null;
+let placeDraft = {name:'', location:'', notes:'', visited:false};
+
 let savingsGoals = [];
 let editingSavingsId = null;
 let savingsDraft = {title:'', target:'', image:null, color: SWATCHES[0]};
@@ -1710,6 +1765,8 @@ function exportAllData(){
     infoCategories,
     inventory: recipeInventory,
     recipes,
+    datingPlaces,
+    travelPlaces,
     savings: savingsGoals,
     level: {level: roadmapLevel, xp: roadmapXP},
     stats: roadmapStats
@@ -1752,6 +1809,8 @@ document.getElementById('importFileInput').addEventListener('change', async (e)=
     if(data.infoCategories) infoCategories = data.infoCategories;
     if(data.inventory) recipeInventory = data.inventory;
     if(data.recipes) recipes = data.recipes;
+    if(data.datingPlaces) datingPlaces = data.datingPlaces;
+    if(data.travelPlaces) travelPlaces = data.travelPlaces;
     if(data.savings) savingsGoals = data.savings;
     if(data.level){
       roadmapLevel = data.level.level || 1;
@@ -1761,7 +1820,8 @@ document.getElementById('importFileInput').addEventListener('change', async (e)=
 
     await saveItems(); await saveCategories(); await saveCards(); await saveRewards();
     await saveBuylist(); await saveBuylistCats(); await saveInfoCats();
-    await saveInventory(); await saveRecipes(); await saveSavings(); await saveLevel(); await saveStats();
+    await saveInventory(); await saveRecipes(); await saveDatingPlaces(); await saveTravelPlaces();
+    await saveSavings(); await saveLevel(); await saveStats();
 
     render(); renderGoals(); renderLevelPlaque(); renderRewards(); renderBuylist(); renderSavings(); renderInfoGrid();
     alert('Backup restored successfully' + (fbUser ? ' and synced to your account.' : '.'));
@@ -1851,6 +1911,18 @@ async function loadAll(){
     recipes.forEach(r=>{ if(!r.ingredients) r.ingredients = []; });
   }catch(e){
     recipes = [];
+  }
+  try{
+    const res5f = await storageAdapter.get('tracker_dating_places');
+    datingPlaces = res5f && res5f.value ? JSON.parse(res5f.value) : [];
+  }catch(e){
+    datingPlaces = [];
+  }
+  try{
+    const res5g = await storageAdapter.get('tracker_travel_places');
+    travelPlaces = res5g && res5g.value ? JSON.parse(res5g.value) : [];
+  }catch(e){
+    travelPlaces = [];
   }
   try{
     const res6 = await storageAdapter.get('tracker_savings');
@@ -1990,10 +2062,28 @@ async function saveRecipes(){
   }
   if(fbUser) pushAllToCloud();
 }
+async function saveDatingPlaces(){
+  try{
+    await storageAdapter.set('tracker_dating_places', JSON.stringify(datingPlaces));
+  }catch(e){
+    console.error('Save failed', e);
+  }
+  if(fbUser) pushAllToCloud();
+}
+async function saveTravelPlaces(){
+  try{
+    await storageAdapter.set('tracker_travel_places', JSON.stringify(travelPlaces));
+  }catch(e){
+    console.error('Save failed', e);
+  }
+  if(fbUser) pushAllToCloud();
+}
 
 // ---- Information categories (icons + colors now; content behind each comes later) ----
 const PERMANENT_INFO_TILES = [
-  {id:'recipes', name:'Recipes', icon:'🍛', color:'#b8705c'}
+  {id:'recipes', name:'Recipes', icon:'🍛', color:'#b8705c'},
+  {id:'dating', name:'Dating', icon:'💕', color:'#b85c8f'},
+  {id:'traveling', name:'Traveling', icon:'✈️', color:'#4a7ba6'}
 ];
 
 function renderInfoGrid(){
@@ -2013,6 +2103,8 @@ function renderInfoGrid(){
 
 function openInfoCatDetail(id){
   if(id === 'recipes'){ openRecipesHome(); return; }
+  if(id === 'dating'){ openPlacesHome('dating'); return; }
+  if(id === 'traveling'){ openPlacesHome('traveling'); return; }
   const cat = PERMANENT_INFO_TILES.find(c=>c.id===id);
   if(!cat) return;
   const banner = document.getElementById('infoCatDetailBanner');
@@ -2658,6 +2750,113 @@ document.getElementById('recipeStepClose').addEventListener('click', ()=>{
 });
 document.getElementById('recipeStepOverlay').addEventListener('click', (e)=>{
   if(e.target.id === 'recipeStepOverlay') e.currentTarget.classList.remove('open');
+});
+
+// ---- Places (shared by Dating and Traveling tiles) ----
+function getPlacesArray(kind){ return kind === 'dating' ? datingPlaces : travelPlaces; }
+function setPlacesArray(kind, arr){ if(kind === 'dating') datingPlaces = arr; else travelPlaces = arr; }
+function savePlacesFor(kind){ return kind === 'dating' ? saveDatingPlaces() : saveTravelPlaces(); }
+
+function openPlacesHome(kind){
+  currentPlacesKind = kind;
+  document.getElementById('placesHomeTitle').textContent = kind === 'dating' ? 'Dating' : 'Traveling';
+  renderPlacesList();
+  blurActive();
+  document.getElementById('placesHomeOverlay').classList.add('open');
+}
+document.getElementById('placesHomeClose').addEventListener('click', ()=>{
+  document.getElementById('placesHomeOverlay').classList.remove('open');
+});
+document.getElementById('placesHomeOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'placesHomeOverlay') e.currentTarget.classList.remove('open');
+});
+
+function renderPlacesList(){
+  const el = document.getElementById('placesListEl');
+  const list = getPlacesArray(currentPlacesKind);
+  if(!list.length){
+    const hint = currentPlacesKind === 'dating' ? 'Add spots you want to check out.' : 'Add places you want to visit abroad.';
+    el.innerHTML = `<div class="empty" style="padding:20px 8px;"><div class="big" style="font-size:17px;">No places yet</div>${hint}</div>`;
+    return;
+  }
+  el.innerHTML = list.map(p => `
+    <div class="invRow" data-id="${p.id}" style="${p.visited ? 'opacity:0.55;' : ''}">
+      <span class="invRow-name">${p.visited ? '\u2705 ' : ''}${escapeHtml(p.name)}</span>
+      ${p.location ? `<span class="invRow-amount">${escapeHtml(p.location)}</span>` : ''}
+    </div>
+  `).join('');
+  el.querySelectorAll('.invRow').forEach(row=>{
+    row.addEventListener('click', ()=> openPlaceEdit(row.dataset.id));
+  });
+}
+
+document.getElementById('placesAddBtn').addEventListener('click', ()=> openPlaceAdd());
+
+function openPlaceAdd(){
+  editingPlaceId = null;
+  placeDraft = {name:'', location:'', notes:'', visited:false};
+  document.getElementById('placeSheetTitle').textContent = 'Add Place';
+  document.getElementById('placeName').value = '';
+  document.getElementById('placeLocation').value = '';
+  document.getElementById('placeNotes').value = '';
+  document.getElementById('placeVisited').checked = false;
+  document.getElementById('placeLocationLabel').textContent = currentPlacesKind === 'dating' ? 'Location' : 'Country';
+  document.getElementById('placeLocation').placeholder = currentPlacesKind === 'dating' ? 'e.g. Downtown, near the pier' : 'e.g. Japan, Italy';
+  document.getElementById('placeSave').textContent = 'Add Place';
+  document.getElementById('placeDeleteRow').style.display = 'none';
+  blurActive();
+  document.getElementById('placeOverlay').classList.add('open');
+}
+
+function openPlaceEdit(id){
+  const list = getPlacesArray(currentPlacesKind);
+  const p = list.find(x=>x.id===id);
+  if(!p) return;
+  editingPlaceId = id;
+  placeDraft = {name:p.name, location:p.location||'', notes:p.notes||'', visited:!!p.visited};
+  document.getElementById('placeSheetTitle').textContent = 'Edit Place';
+  document.getElementById('placeName').value = p.name;
+  document.getElementById('placeLocation').value = p.location || '';
+  document.getElementById('placeNotes').value = p.notes || '';
+  document.getElementById('placeVisited').checked = !!p.visited;
+  document.getElementById('placeLocationLabel').textContent = currentPlacesKind === 'dating' ? 'Location' : 'Country';
+  document.getElementById('placeLocation').placeholder = currentPlacesKind === 'dating' ? 'e.g. Downtown, near the pier' : 'e.g. Japan, Italy';
+  document.getElementById('placeSave').textContent = 'Save';
+  document.getElementById('placeDeleteRow').style.display = 'flex';
+  blurActive();
+  document.getElementById('placeOverlay').classList.add('open');
+}
+
+document.getElementById('placeCancel').addEventListener('click', ()=> document.getElementById('placeOverlay').classList.remove('open'));
+document.getElementById('placeOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'placeOverlay') e.currentTarget.classList.remove('open');
+});
+
+document.getElementById('placeSave').addEventListener('click', async ()=>{
+  const name = document.getElementById('placeName').value.trim();
+  if(!name){ document.getElementById('placeName').focus(); return; }
+  const location = document.getElementById('placeLocation').value.trim();
+  const notes = document.getElementById('placeNotes').value.trim();
+  const visited = document.getElementById('placeVisited').checked;
+
+  const list = getPlacesArray(currentPlacesKind);
+  if(editingPlaceId){
+    const p = list.find(x=>x.id===editingPlaceId);
+    p.name = name; p.location = location; p.notes = notes; p.visited = visited;
+  }else{
+    list.push({id: uid('pl'), name, location, notes, visited, addedAt: Date.now()});
+  }
+  await savePlacesFor(currentPlacesKind);
+  document.getElementById('placeOverlay').classList.remove('open');
+  renderPlacesList();
+});
+
+document.getElementById('placeDelete').addEventListener('click', async ()=>{
+  if(!editingPlaceId) return;
+  setPlacesArray(currentPlacesKind, getPlacesArray(currentPlacesKind).filter(x=>x.id!==editingPlaceId));
+  await savePlacesFor(currentPlacesKind);
+  document.getElementById('placeOverlay').classList.remove('open');
+  renderPlacesList();
 });
 
 function openInfoCatAdd(){
