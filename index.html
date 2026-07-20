@@ -399,6 +399,33 @@
   .placeVideoWrap{width:100%; aspect-ratio:16/9; border-radius:14px; overflow:hidden; background:#000; border:1.5px solid var(--ink);}
   .placeVideoWrap iframe, .placeVideoWrap video{width:100%; height:100%; border:none; display:block;}
 
+  .hoursGrid{display:flex; flex-direction:column; gap:8px;}
+  .hoursRow{display:flex; align-items:center; gap:8px;}
+  .hoursRow-day{
+    width:36px; flex:0 0 36px; font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase; color:var(--muted);
+  }
+  .hoursRow input[type="time"]{
+    flex:1; min-width:0; padding:7px 8px; border:1.5px solid var(--line); background:var(--card); border-radius:10px;
+    font-family:'Inter',sans-serif; font-size:13px; color:var(--text);
+  }
+  .hoursRow input[type="time"]:disabled{opacity:0.35;}
+  .hoursRow-sep{color:var(--muted); font-size:12px;}
+  .hoursRow-closed{
+    display:flex; align-items:center; gap:5px; font-family:'JetBrains Mono',monospace; font-size:10px;
+    text-transform:uppercase; color:var(--text-dim); white-space:nowrap;
+  }
+  .hoursRow-closed input{width:16px; height:16px; accent-color:var(--rose);}
+
+  .openBadge{
+    font-family:'JetBrains Mono',monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:0.3px;
+    display:inline-flex; align-items:center; gap:5px; margin-bottom:8px;
+  }
+  .openBadge::before{content:''; width:8px; height:8px; border-radius:50%;}
+  .openBadge.open{color:#2e6b34;}
+  .openBadge.open::before{background:#4a9950;}
+  .openBadge.closed{color:#a8756f;}
+  .openBadge.closed::before{background:#c96f63;}
+
   .cdBanner{
     display:flex; gap:14px; align-items:center; margin:0 0 16px; padding:16px;
     background:linear-gradient(180deg, var(--card) 0%, var(--paper) 100%);
@@ -1300,7 +1327,7 @@
     </div>
     <div class="field">
       <label>Hours (optional)</label>
-      <textarea id="placeHours" placeholder="e.g. Mon-Thu 10am-9pm, Fri-Sat 10am-11pm, Sun 10am-9pm"></textarea>
+      <div id="placeHoursGrid" class="hoursGrid"></div>
     </div>
     <div class="field">
       <label>Video Link (optional)</label>
@@ -1790,7 +1817,16 @@ let datingPlaces = [];
 let travelPlaces = [];
 let currentPlacesKind = 'dating';
 let editingPlaceId = null;
-let placeDraft = {name:'', location:'', notes:'', visited:false, image:null, dateTime:'', hours:'', videoUrl:''};
+const HOURS_DAYS = [
+  {key:'sun', label:'Sun'}, {key:'mon', label:'Mon'}, {key:'tue', label:'Tue'}, {key:'wed', label:'Wed'},
+  {key:'thu', label:'Thu'}, {key:'fri', label:'Fri'}, {key:'sat', label:'Sat'}
+];
+function emptyHours(){
+  const h = {};
+  HOURS_DAYS.forEach(d=>{ h[d.key] = {open:'', close:'', closed:false}; });
+  return h;
+}
+let placeDraft = {name:'', location:'', notes:'', visited:false, image:null, dateTime:'', hours: emptyHours(), videoUrl:''};
 
 let savingsGoals = [];
 let editingSavingsId = null;
@@ -2861,44 +2897,62 @@ function renderCalendar(){
   const el = document.getElementById('calendarList');
   const labelEl = document.getElementById('calendarTodayLabel');
   const now = new Date();
-  labelEl.textContent = now.toLocaleDateString(undefined, {weekday:'long', month:'long', day:'numeric'});
+  labelEl.textContent = now.toLocaleDateString(undefined, {weekday:'long', month:'long', day:'numeric'}) + ' \u2022 ' + now.toLocaleTimeString(undefined, {hour:'numeric', minute:'2-digit'});
 
+  const buildRow = (place, kind, rightLabel)=>{
+    const kindLabel = kind === 'dating' ? 'Dating' : 'Traveling';
+    const kindColor = kind === 'dating' ? '#b85c8f' : '#4a7ba6';
+    return `
+      <div class="invRow" data-id="${place.id}" data-kind="${kind}" style="align-items:center;">
+        ${place.image ? `<img src="${place.image}" alt="" style="width:66px; height:66px; border-radius:12px; object-fit:cover; flex:0 0 66px;">` : ''}
+        <div style="flex:1; min-width:0;">
+          <div class="invRow-name">${escapeHtml(place.name)}</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:10px; text-transform:uppercase; color:${kindColor};">${kindLabel}</div>
+        </div>
+        <span class="invRow-amount">${rightLabel}</span>
+      </div>
+    `;
+  };
+
+  // Open right now, based on structured hours
+  const openNowEntries = [];
+  datingPlaces.forEach(p=>{ if(isPlaceOpenNow(p)) openNowEntries.push({place:p, kind:'dating'}); });
+  travelPlaces.forEach(p=>{ if(isPlaceOpenNow(p)) openNowEntries.push({place:p, kind:'traveling'}); });
+
+  // Scheduled today, based on planned date & time
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const endOfDay = startOfDay + 24*60*60*1000;
-
-  const entries = [];
+  const scheduledEntries = [];
   datingPlaces.forEach(p=>{
     if(!p.dateTime) return;
     const t = new Date(p.dateTime).getTime();
-    if(!isNaN(t) && t >= startOfDay && t < endOfDay) entries.push({place:p, kind:'dating', time:t});
+    if(!isNaN(t) && t >= startOfDay && t < endOfDay) scheduledEntries.push({place:p, kind:'dating', time:t});
   });
   travelPlaces.forEach(p=>{
     if(!p.dateTime) return;
     const t = new Date(p.dateTime).getTime();
-    if(!isNaN(t) && t >= startOfDay && t < endOfDay) entries.push({place:p, kind:'traveling', time:t});
+    if(!isNaN(t) && t >= startOfDay && t < endOfDay) scheduledEntries.push({place:p, kind:'traveling', time:t});
   });
-  entries.sort((a,b)=> a.time - b.time);
+  scheduledEntries.sort((a,b)=> a.time - b.time);
 
-  if(!entries.length){
-    el.innerHTML = `<div class="empty"><div class="big">Nothing scheduled today</div>Places with a date & time set for today will show up here.</div>`;
+  if(!openNowEntries.length && !scheduledEntries.length){
+    el.innerHTML = `<div class="empty"><div class="big">Nothing right now</div>Add hours to a place to see what's open, or a date & time to see what's planned today.</div>`;
     return;
   }
 
-  el.innerHTML = entries.map(e=>{
-    const timeStr = new Date(e.time).toLocaleTimeString(undefined, {hour:'numeric', minute:'2-digit'});
-    const kindLabel = e.kind === 'dating' ? 'Dating' : 'Traveling';
-    const kindColor = e.kind === 'dating' ? '#b85c8f' : '#4a7ba6';
-    return `
-      <div class="invRow" data-id="${e.place.id}" data-kind="${e.kind}" style="align-items:center;">
-        ${e.place.image ? `<img src="${e.place.image}" alt="" style="width:66px; height:66px; border-radius:12px; object-fit:cover; flex:0 0 66px;">` : ''}
-        <div style="flex:1; min-width:0;">
-          <div class="invRow-name">${escapeHtml(e.place.name)}</div>
-          <div style="font-family:'JetBrains Mono',monospace; font-size:10px; text-transform:uppercase; color:${kindColor};">${kindLabel}</div>
-        </div>
-        <span class="invRow-amount">${timeStr}</span>
-      </div>
-    `;
-  }).join('');
+  let html = '';
+  if(openNowEntries.length){
+    html += `<div class="invCatHead">Open Right Now</div>`;
+    html += openNowEntries.map(e=> buildRow(e.place, e.kind, 'Open')).join('');
+  }
+  if(scheduledEntries.length){
+    html += `<div class="invCatHead">Scheduled Today</div>`;
+    html += scheduledEntries.map(e=>{
+      const timeStr = new Date(e.time).toLocaleTimeString(undefined, {hour:'numeric', minute:'2-digit'});
+      return buildRow(e.place, e.kind, timeStr);
+    }).join('');
+  }
+  el.innerHTML = html;
 
   el.querySelectorAll('.invRow').forEach(row=>{
     row.addEventListener('click', ()=>{
@@ -2950,6 +3004,44 @@ function renderPlacesList(){
       openPlaceDetail(row.dataset.id);
     });
   });
+}
+
+function isPlaceOpenNow(place){
+  if(!place.hours || typeof place.hours !== 'object') return null;
+  const now = new Date();
+  const key = HOURS_DAYS[now.getDay()].key;
+  const day = place.hours[key];
+  if(!day || day.closed || !day.open || !day.close) return false;
+  const [oh,om] = day.open.split(':').map(Number);
+  const [ch,cm] = day.close.split(':').map(Number);
+  const openMins = oh*60+om, closeMins = ch*60+cm;
+  const nowMins = now.getHours()*60 + now.getMinutes();
+  if(closeMins > openMins) return nowMins >= openMins && nowMins < closeMins;
+  return nowMins >= openMins || nowMins < closeMins; // overnight hours
+}
+
+function hasAnyHours(place){
+  if(!place.hours || typeof place.hours !== 'object') return false;
+  return HOURS_DAYS.some(d=>{
+    const day = place.hours[d.key];
+    return day && (day.closed || (day.open && day.close));
+  });
+}
+
+function formatTime12(t){
+  if(!t) return '';
+  const [h,m] = t.split(':').map(Number);
+  const period = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2,'0')} ${period}`;
+}
+
+function formatPlaceHoursList(place){
+  return HOURS_DAYS.map(d=>{
+    const day = place.hours[d.key];
+    const text = (day && day.closed) ? 'Closed' : (day && day.open && day.close) ? `${formatTime12(day.open)} \u2013 ${formatTime12(day.close)}` : '\u2014';
+    return `${d.label}  ${text}`;
+  }).join('\n');
 }
 
 function formatPlaceDateTime(val){
@@ -3023,9 +3115,11 @@ function openPlaceDetail(id){
   }
 
   const hoursField = document.getElementById('placeDetailHoursField');
-  if(p.hours){
+  if(hasAnyHours(p)){
     hoursField.style.display = 'block';
-    document.getElementById('placeDetailHours').textContent = p.hours;
+    const openNow = isPlaceOpenNow(p);
+    const badge = openNow === null ? '' : `<div class="openBadge ${openNow?'open':'closed'}">${openNow?'Open now':'Closed now'}</div>`;
+    document.getElementById('placeDetailHours').innerHTML = badge + escapeHtml(formatPlaceHoursList(p)).replace(/\n/g,'<br>');
   }else{
     hoursField.style.display = 'none';
   }
@@ -3082,14 +3176,45 @@ document.getElementById('placeMapBtn').addEventListener('click', ()=>{
   window.open(mapsUrlFor(loc), '_blank', 'noopener');
 });
 
+function renderPlaceHoursGrid(){
+  const el = document.getElementById('placeHoursGrid');
+  el.innerHTML = HOURS_DAYS.map(d=>{
+    const day = placeDraft.hours[d.key] || {open:'', close:'', closed:false};
+    return `
+      <div class="hoursRow" data-day="${d.key}">
+        <span class="hoursRow-day">${d.label}</span>
+        <input type="time" class="hoursOpen" value="${day.open||''}" ${day.closed?'disabled':''}>
+        <span class="hoursRow-sep">&ndash;</span>
+        <input type="time" class="hoursClose" value="${day.close||''}" ${day.closed?'disabled':''}>
+        <label class="hoursRow-closed">
+          <input type="checkbox" class="hoursClosed" ${day.closed?'checked':''}>
+          Closed
+        </label>
+      </div>
+    `;
+  }).join('');
+  el.querySelectorAll('.hoursRow').forEach(row=>{
+    const key = row.dataset.day;
+    const openInput = row.querySelector('.hoursOpen');
+    const closeInput = row.querySelector('.hoursClose');
+    const closedInput = row.querySelector('.hoursClosed');
+    closedInput.addEventListener('change', ()=>{
+      placeDraft.hours[key].closed = closedInput.checked;
+      openInput.disabled = closedInput.checked;
+      closeInput.disabled = closedInput.checked;
+    });
+    openInput.addEventListener('change', ()=>{ placeDraft.hours[key].open = openInput.value; });
+    closeInput.addEventListener('change', ()=>{ placeDraft.hours[key].close = closeInput.value; });
+  });
+}
+
 function openPlaceAdd(){
   editingPlaceId = null;
-  placeDraft = {name:'', location:'', notes:'', visited:false, image:null, dateTime:'', hours:'', videoUrl:''};
+  placeDraft = {name:'', location:'', notes:'', visited:false, image:null, dateTime:'', hours: emptyHours(), videoUrl:''};
   document.getElementById('placeSheetTitle').textContent = 'Add Place';
   document.getElementById('placeName').value = '';
   document.getElementById('placeLocation').value = '';
   document.getElementById('placeNotes').value = '';
-  document.getElementById('placeHours').value = '';
   document.getElementById('placeVideoUrl').value = '';
   document.getElementById('placeDateTime').value = '';
   document.getElementById('placeVisited').checked = false;
@@ -3098,6 +3223,7 @@ function openPlaceAdd(){
   document.getElementById('placeSave').textContent = 'Add Place';
   document.getElementById('placeDeleteRow').style.display = 'none';
   renderPlaceImagePreview();
+  renderPlaceHoursGrid();
   blurActive();
   document.getElementById('placeOverlay').classList.add('open');
 }
@@ -3107,12 +3233,12 @@ function openPlaceEdit(id){
   const p = list.find(x=>x.id===id);
   if(!p) return;
   editingPlaceId = id;
-  placeDraft = {name:p.name, location:p.location||'', notes:p.notes||'', visited:!!p.visited, image:p.image||null, dateTime:p.dateTime||'', hours:p.hours||'', videoUrl:p.videoUrl||''};
+  const hours = p.hours && typeof p.hours === 'object' ? {...emptyHours(), ...p.hours} : emptyHours();
+  placeDraft = {name:p.name, location:p.location||'', notes:p.notes||'', visited:!!p.visited, image:p.image||null, dateTime:p.dateTime||'', hours, videoUrl:p.videoUrl||''};
   document.getElementById('placeSheetTitle').textContent = 'Edit Place';
   document.getElementById('placeName').value = p.name;
   document.getElementById('placeLocation').value = p.location || '';
   document.getElementById('placeNotes').value = p.notes || '';
-  document.getElementById('placeHours').value = p.hours || '';
   document.getElementById('placeVideoUrl').value = p.videoUrl || '';
   document.getElementById('placeDateTime').value = p.dateTime || '';
   document.getElementById('placeVisited').checked = !!p.visited;
@@ -3121,6 +3247,7 @@ function openPlaceEdit(id){
   document.getElementById('placeSave').textContent = 'Save';
   document.getElementById('placeDeleteRow').style.display = 'flex';
   renderPlaceImagePreview();
+  renderPlaceHoursGrid();
   blurActive();
   document.getElementById('placeOverlay').classList.remove('open');
   document.getElementById('placeDetailOverlay').classList.remove('open');
@@ -3137,7 +3264,7 @@ document.getElementById('placeSave').addEventListener('click', async ()=>{
   if(!name){ document.getElementById('placeName').focus(); return; }
   const location = document.getElementById('placeLocation').value.trim();
   const notes = document.getElementById('placeNotes').value.trim();
-  const hours = document.getElementById('placeHours').value.trim();
+  const hours = placeDraft.hours;
   const videoUrl = document.getElementById('placeVideoUrl').value.trim();
   const dateTime = document.getElementById('placeDateTime').value.trim();
   const visited = document.getElementById('placeVisited').checked;
