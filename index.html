@@ -392,7 +392,7 @@
   }
 
   .placeHero{
-    width:100%; aspect-ratio:4/3; border-radius:18px; overflow:hidden; margin-bottom:16px;
+    width:100%; aspect-ratio:16/9; border-radius:18px; overflow:hidden; margin-bottom:16px;
     border:1.5px solid var(--ink); box-shadow:0 8px 20px rgba(28,30,38,0.15);
   }
   .placeHero img{width:100%; height:100%; object-fit:cover; display:block;}
@@ -418,13 +418,23 @@
 
   .openBadge{
     font-family:'JetBrains Mono',monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:0.3px;
-    display:inline-flex; align-items:center; gap:5px; margin-bottom:8px;
+    display:flex; align-items:center; gap:5px; margin-bottom:10px;
   }
-  .openBadge::before{content:''; width:8px; height:8px; border-radius:50%;}
+  .openBadge::before{content:''; width:8px; height:8px; border-radius:50%; flex:0 0 auto;}
   .openBadge.open{color:#2e6b34;}
   .openBadge.open::before{background:#4a9950;}
   .openBadge.closed{color:#a8756f;}
   .openBadge.closed::before{background:#c96f63;}
+
+  .hoursDisplay{
+    border:1.5px solid var(--line); border-radius:12px; overflow:hidden; background:var(--card);
+  }
+  .hoursDisplayRow{
+    display:flex; justify-content:space-between; padding:8px 12px; font-size:13.5px; color:var(--text-dim);
+    border-bottom:1px solid var(--line);
+  }
+  .hoursDisplayRow:last-child{border-bottom:none;}
+  .hoursDisplayRow.today{background:var(--paper-dim); color:var(--ink); font-weight:600;}
 
   .cdBanner{
     display:flex; gap:14px; align-items:center; margin:0 0 16px; padding:16px;
@@ -1361,9 +1371,9 @@
   <div class="sheet">
     <div id="placeDetailHero" class="placeHero" style="display:none;"></div>
     <div id="placeDetailBanner" class="cdBanner"></div>
-    <div class="field" id="placeDetailVideoField" style="display:none;">
-      <label>Video</label>
-      <div id="placeDetailVideo" class="placeVideoWrap"></div>
+    <div class="field" id="placeDetailHoursField" style="display:none;">
+      <label>Hours</label>
+      <div id="placeDetailHours"></div>
     </div>
     <div class="field" id="placeDetailMapField" style="display:none;">
       <label>Address</label>
@@ -1373,9 +1383,9 @@
       <label>Date & Time</label>
       <div id="placeDetailWhen" style="font-size:14.5px; color:var(--text);"></div>
     </div>
-    <div class="field" id="placeDetailHoursField" style="display:none;">
-      <label>Hours</label>
-      <div id="placeDetailHours" style="font-size:13.5px; color:var(--text-dim); line-height:1.5; white-space:pre-line;"></div>
+    <div class="field" id="placeDetailVideoField" style="display:none;">
+      <label>Video</label>
+      <div id="placeDetailVideo" class="placeVideoWrap"></div>
     </div>
     <div class="field" id="placeDetailNotesField" style="display:none;">
       <label>Notes</label>
@@ -3036,12 +3046,14 @@ function formatTime12(t){
   return `${h12}:${String(m).padStart(2,'0')} ${period}`;
 }
 
-function formatPlaceHoursList(place){
+function formatPlaceHoursRows(place){
+  const todayKey = HOURS_DAYS[new Date().getDay()].key;
   return HOURS_DAYS.map(d=>{
     const day = place.hours[d.key];
     const text = (day && day.closed) ? 'Closed' : (day && day.open && day.close) ? `${formatTime12(day.open)} \u2013 ${formatTime12(day.close)}` : '\u2014';
-    return `${d.label}  ${text}`;
-  }).join('\n');
+    const isToday = d.key === todayKey;
+    return `<div class="hoursDisplayRow${isToday?' today':''}"><span>${d.label}</span><span>${escapeHtml(text)}</span></div>`;
+  }).join('');
 }
 
 function formatPlaceDateTime(val){
@@ -3069,14 +3081,24 @@ function openPlaceDetail(id){
   }
 
   const banner = document.getElementById('placeDetailBanner');
-  banner.innerHTML = `
-    <div class="cdBanner-thumb" style="background:var(--paper-dim);">${p.image ? `<img src="${p.image}" alt="">` : `<span class="placeholderLetter">${escapeHtml((p.name||'?').charAt(0).toUpperCase())}</span>`}</div>
-    <div class="cdBanner-info">
-      <div class="cdBanner-title">${escapeHtml(p.name)}</div>
-      ${p.visited ? `<div class="cdBanner-date">\u2705 Visited</div>` : ''}
-    </div>
-    <button class="cdBanner-edit" id="placeDetailEditBtn">Edit</button>
-  `;
+  if(p.image){
+    banner.innerHTML = `
+      <div class="cdBanner-info">
+        <div class="cdBanner-title">${escapeHtml(p.name)}</div>
+        ${p.visited ? `<div class="cdBanner-date">\u2705 Visited</div>` : ''}
+      </div>
+      <button class="cdBanner-edit" id="placeDetailEditBtn">Edit</button>
+    `;
+  }else{
+    banner.innerHTML = `
+      <div class="cdBanner-thumb" style="background:var(--paper-dim);"><span class="placeholderLetter">${escapeHtml((p.name||'?').charAt(0).toUpperCase())}</span></div>
+      <div class="cdBanner-info">
+        <div class="cdBanner-title">${escapeHtml(p.name)}</div>
+        ${p.visited ? `<div class="cdBanner-date">\u2705 Visited</div>` : ''}
+      </div>
+      <button class="cdBanner-edit" id="placeDetailEditBtn">Edit</button>
+    `;
+  }
   document.getElementById('placeDetailEditBtn').addEventListener('click', ()=> openPlaceEdit(p.id));
 
   const videoField = document.getElementById('placeDetailVideoField');
@@ -3084,7 +3106,7 @@ function openPlaceDetail(id){
   if(p.videoUrl){
     const ytId = getYouTubeId(p.videoUrl);
     if(ytId){
-      videoEl.innerHTML = `<iframe src="https://www.youtube.com/embed/${ytId}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+      videoEl.innerHTML = `<iframe src="https://www.youtube.com/embed/${ytId}?rel=0" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
     }else if(isDirectVideoUrl(p.videoUrl)){
       videoEl.innerHTML = `<video src="${escapeAttr(p.videoUrl)}" controls playsinline></video>`;
     }else{
@@ -3119,7 +3141,7 @@ function openPlaceDetail(id){
     hoursField.style.display = 'block';
     const openNow = isPlaceOpenNow(p);
     const badge = openNow === null ? '' : `<div class="openBadge ${openNow?'open':'closed'}">${openNow?'Open now':'Closed now'}</div>`;
-    document.getElementById('placeDetailHours').innerHTML = badge + escapeHtml(formatPlaceHoursList(p)).replace(/\n/g,'<br>');
+    document.getElementById('placeDetailHours').innerHTML = badge + `<div class="hoursDisplay">${formatPlaceHoursRows(p)}</div>`;
   }else{
     hoursField.style.display = 'none';
   }
