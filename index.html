@@ -3109,6 +3109,8 @@ function openPlaceDetail(id){
       videoEl.innerHTML = `<iframe src="https://www.youtube.com/embed/${ytId}?rel=0" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
     }else if(isDirectVideoUrl(p.videoUrl)){
       videoEl.innerHTML = `<video src="${escapeAttr(p.videoUrl)}" controls playsinline></video>`;
+    }else if(isFacebookUrl(p.videoUrl)){
+      videoEl.innerHTML = `<iframe src="https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(p.videoUrl)}&show_text=false" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" allowfullscreen></iframe>`;
     }else{
       videoEl.innerHTML = `<div style="padding:16px; color:#fff; font-size:13px;">Can't preview this link directly — <a href="${escapeAttr(p.videoUrl)}" target="_blank" rel="noopener" style="color:var(--teal);">open it here</a>.</div>`;
     }
