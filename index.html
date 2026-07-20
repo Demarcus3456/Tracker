@@ -417,6 +417,9 @@
   }
   .placeVideoWrap .videoFbPoster svg{width:34px; height:34px;}
   .placeVideoWrap iframe, .placeVideoWrap video{width:100%; height:100%; border:none; display:block; cursor:auto;}
+  .placeVideoWrapFull{
+    width:100%; height:80vh; max-height:80dvh; aspect-ratio:auto; cursor:auto;
+  }
 
   .hoursGrid{display:flex; flex-direction:column; gap:8px;}
   .hoursRow{display:flex; align-items:center; gap:8px;}
@@ -1419,7 +1422,7 @@
 
 <div class="sheet-overlay" id="videoFullscreenOverlay">
   <div class="sheet" style="display:flex; flex-direction:column; justify-content:center;">
-    <div id="videoFullscreenContent" class="placeVideoWrap" style="aspect-ratio:16/9;"></div>
+    <div id="videoFullscreenContent" class="placeVideoWrap placeVideoWrapFull"></div>
     <div class="sheet-actions">
       <button class="btn-cancel" id="videoFullscreenClose">Close</button>
     </div>
@@ -3176,12 +3179,9 @@ function openPlaceDetail(id){
           <div class="videoPlayBadge"></div>
         </div>`;
       videoEl.onclick = openVideoFullscreen;
-      videoFallback.innerHTML = `If it doesn't play (private or restricted video), <a href="${escapeAttr(p.videoUrl)}" target="_blank" rel="noopener" style="color:var(--teal);">open it on Facebook</a> instead.`;
+      currentVideoEmbedHtml = `<iframe src="https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(p.videoUrl)}&show_text=false&autoplay=true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" allowfullscreen></iframe>`;
+      videoFallback.innerHTML = `If it doesn't play, <a href="${escapeAttr(p.videoUrl)}" target="_blank" rel="noopener" style="color:var(--teal);">open it on Facebook</a> instead. Tip: use "Copy Link" from the post's menu rather than "Share" for the best chance of it working.`;
       videoFallback.style.display = 'block';
-      resolveFacebookVideoUrl(p.videoUrl).then(resolvedUrl=>{
-        if(currentPlaceDetailId !== p.id) return; // user navigated away already
-        currentVideoEmbedHtml = `<iframe src="https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(resolvedUrl)}&show_text=false&autoplay=true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" allowfullscreen></iframe>`;
-      });
     }else{
       videoEl.innerHTML = `<div style="padding:16px; color:#fff; font-size:13px;">Can't preview this link directly — <a href="${escapeAttr(p.videoUrl)}" target="_blank" rel="noopener" style="color:var(--teal);">open it here</a>.</div>`;
     }
