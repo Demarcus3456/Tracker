@@ -129,6 +129,7 @@
   #recipeOverlay{z-index:45;}
   #recipeDetailOverlay{z-index:44;}
   #recipeStepOverlay{z-index:46;}
+  #videoFullscreenOverlay{z-index:47;}
 
   .iconGrid{display:flex; flex-wrap:wrap; gap:10px;}
   .iconBtn{
@@ -396,8 +397,26 @@
     border:1.5px solid var(--ink); box-shadow:0 8px 20px rgba(28,30,38,0.15);
   }
   .placeHero img{width:100%; height:100%; object-fit:cover; display:block;}
-  .placeVideoWrap{width:100%; aspect-ratio:16/9; border-radius:14px; overflow:hidden; background:#000; border:1.5px solid var(--ink);}
-  .placeVideoWrap iframe, .placeVideoWrap video{width:100%; height:100%; border:none; display:block;}
+  .placeVideoWrap{
+    width:100%; aspect-ratio:16/9; border-radius:14px; overflow:hidden; background:#000; border:1.5px solid var(--ink);
+    position:relative; cursor:pointer;
+  }
+  .placeVideoWrap img{width:100%; height:100%; object-fit:cover; display:block;}
+  .placeVideoWrap .videoPlayBadge{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:58px; height:58px; border-radius:50%; background:rgba(20,22,28,0.75); border:1.5px solid rgba(255,255,255,0.5);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .placeVideoWrap .videoPlayBadge::after{
+    content:''; border-style:solid; border-width:10px 0 10px 16px; border-color:transparent transparent transparent #fff;
+    margin-left:4px;
+  }
+  .placeVideoWrap .videoFbPoster{
+    width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+    background:linear-gradient(135deg, #1877F2, #0e4ea3); color:#fff;
+  }
+  .placeVideoWrap .videoFbPoster svg{width:34px; height:34px;}
+  .placeVideoWrap iframe, .placeVideoWrap video{width:100%; height:100%; border:none; display:block; cursor:auto;}
 
   .hoursGrid{display:flex; flex-direction:column; gap:8px;}
   .hoursRow{display:flex; align-items:center; gap:8px;}
@@ -1398,6 +1417,15 @@
   </div>
 </div>
 
+<div class="sheet-overlay" id="videoFullscreenOverlay">
+  <div class="sheet" style="display:flex; flex-direction:column; justify-content:center;">
+    <div id="videoFullscreenContent" class="placeVideoWrap" style="aspect-ratio:16/9;"></div>
+    <div class="sheet-actions">
+      <button class="btn-cancel" id="videoFullscreenClose">Close</button>
+    </div>
+  </div>
+</div>
+
 <div class="sheet-overlay" id="recipesHomeOverlay">
   <div class="sheet">
     <h2>Recipes</h2>
@@ -1828,6 +1856,7 @@ let datingPlaces = [];
 let travelPlaces = [];
 let currentPlacesKind = 'dating';
 let currentPlaceDetailId = null;
+let currentVideoEmbedHtml = '';
 let editingPlaceId = null;
 const HOURS_DAYS = [
   {key:'sun', label:'Sun'}, {key:'mon', label:'Mon'}, {key:'tue', label:'Tue'}, {key:'wed', label:'Wed'},
@@ -3128,19 +3157,30 @@ function openPlaceDetail(id){
   const videoFallback = document.getElementById('placeDetailVideoFallback');
   videoFallback.style.display = 'none';
   videoFallback.innerHTML = '';
+  currentVideoEmbedHtml = '';
+  videoEl.onclick = null;
   if(p.videoUrl){
     const ytId = getYouTubeId(p.videoUrl);
     if(ytId){
-      videoEl.innerHTML = `<iframe src="https://www.youtube.com/embed/${ytId}?rel=0" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+      currentVideoEmbedHtml = `<iframe src="https://www.youtube.com/embed/${ytId}?rel=0&autoplay=1" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+      videoEl.innerHTML = `<img src="https://img.youtube.com/vi/${ytId}/hqdefault.jpg" alt=""><div class="videoPlayBadge"></div>`;
+      videoEl.onclick = openVideoFullscreen;
     }else if(isDirectVideoUrl(p.videoUrl)){
-      videoEl.innerHTML = `<video src="${escapeAttr(p.videoUrl)}" controls playsinline></video>`;
+      currentVideoEmbedHtml = `<video src="${escapeAttr(p.videoUrl)}" controls autoplay playsinline></video>`;
+      videoEl.innerHTML = `<video src="${escapeAttr(p.videoUrl)}" muted playsinline preload="metadata"></video><div class="videoPlayBadge"></div>`;
+      videoEl.onclick = openVideoFullscreen;
     }else if(isFacebookUrl(p.videoUrl)){
-      videoEl.innerHTML = `<div style="display:flex; align-items:center; justify-content:center; height:100%; color:#fff; font-size:12px;">Loading video…</div>`;
+      videoEl.innerHTML = `
+        <div class="videoFbPoster">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.4h-1.2c-1.2 0-1.6.8-1.6 1.6V12h2.8l-.4 2.9h-2.4v7A10 10 0 0 0 22 12z"/></svg>
+          <div class="videoPlayBadge"></div>
+        </div>`;
+      videoEl.onclick = openVideoFullscreen;
       videoFallback.innerHTML = `If it doesn't play (private or restricted video), <a href="${escapeAttr(p.videoUrl)}" target="_blank" rel="noopener" style="color:var(--teal);">open it on Facebook</a> instead.`;
       videoFallback.style.display = 'block';
       resolveFacebookVideoUrl(p.videoUrl).then(resolvedUrl=>{
         if(currentPlaceDetailId !== p.id) return; // user navigated away already
-        videoEl.innerHTML = `<iframe src="https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(resolvedUrl)}&show_text=false" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" allowfullscreen></iframe>`;
+        currentVideoEmbedHtml = `<iframe src="https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(resolvedUrl)}&show_text=false&autoplay=true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" allowfullscreen></iframe>`;
       });
     }else{
       videoEl.innerHTML = `<div style="padding:16px; color:#fff; font-size:13px;">Can't preview this link directly — <a href="${escapeAttr(p.videoUrl)}" target="_blank" rel="noopener" style="color:var(--teal);">open it here</a>.</div>`;
@@ -3195,6 +3235,33 @@ document.getElementById('placeDetailClose').addEventListener('click', ()=>{
 });
 document.getElementById('placeDetailOverlay').addEventListener('click', (e)=>{
   if(e.target.id === 'placeDetailOverlay') e.currentTarget.classList.remove('open');
+});
+
+function openVideoFullscreen(){
+  const content = document.getElementById('videoFullscreenContent');
+  if(currentVideoEmbedHtml){
+    content.innerHTML = currentVideoEmbedHtml;
+    document.getElementById('videoFullscreenOverlay').classList.add('open');
+  }else{
+    content.innerHTML = `<div style="display:flex; align-items:center; justify-content:center; height:100%; color:#fff; font-size:12px;">Loading video…</div>`;
+    document.getElementById('videoFullscreenOverlay').classList.add('open');
+    const waitId = setInterval(()=>{
+      if(currentVideoEmbedHtml){
+        clearInterval(waitId);
+        content.innerHTML = currentVideoEmbedHtml;
+      }
+    }, 200);
+  }
+}
+document.getElementById('videoFullscreenClose').addEventListener('click', ()=>{
+  document.getElementById('videoFullscreenOverlay').classList.remove('open');
+  document.getElementById('videoFullscreenContent').innerHTML = '';
+});
+document.getElementById('videoFullscreenOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'videoFullscreenOverlay'){
+    e.currentTarget.classList.remove('open');
+    document.getElementById('videoFullscreenContent').innerHTML = '';
+  }
 });
 
 document.getElementById('placesAddBtn').addEventListener('click', ()=> openPlaceAdd());
