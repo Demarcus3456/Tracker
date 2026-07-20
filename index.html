@@ -734,6 +734,9 @@
 
 <div class="accountBar" id="accountBar">
   <span id="accountStatus">Not signed in</span>
+  <button id="exportBtn" style="margin-right:6px;">Export</button>
+  <button id="importBtn" style="margin-right:6px;">Import</button>
+  <input type="file" id="importFileInput" accept="application/json" style="display:none;">
   <button id="accountBtn">Sign in with Google</button>
 </div>
 
@@ -1658,6 +1661,78 @@ function catColor(id){
   const c = categories.find(c=>c.id===id);
   return c ? c.color : '#8a8474';
 }
+
+// ---- Export / Import (manual backup, works with or without sign-in) ----
+function exportAllData(){
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    items, categories, cards,
+    rewards: {points: rewardPoints, items: rewardItems, history: rewardHistory},
+    buylist: buylistItems,
+    buylistCategories,
+    infoCategories,
+    inventory: recipeInventory,
+    recipes,
+    savings: savingsGoals,
+    level: {level: roadmapLevel, xp: roadmapXP},
+    stats: roadmapStats
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const stamp = new Date().toISOString().slice(0,10);
+  a.download = `tracker-backup-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=> URL.revokeObjectURL(url), 1000);
+}
+document.getElementById('exportBtn').addEventListener('click', exportAllData);
+
+document.getElementById('importBtn').addEventListener('click', ()=>{
+  document.getElementById('importFileInput').click();
+});
+document.getElementById('importFileInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  e.target.value = '';
+  if(!file) return;
+  if(!confirm('This will replace everything currently in the app with the contents of this backup file. Continue?')) return;
+  try{
+    const text = await file.text();
+    const data = JSON.parse(text);
+
+    if(data.items) items = data.items;
+    if(data.categories) categories = data.categories;
+    if(data.cards) cards = data.cards;
+    if(data.rewards){
+      rewardPoints = data.rewards.points || 0;
+      rewardItems = data.rewards.items || [];
+      rewardHistory = data.rewards.history || [];
+    }
+    if(data.buylist) buylistItems = data.buylist;
+    if(data.buylistCategories) buylistCategories = data.buylistCategories;
+    if(data.infoCategories) infoCategories = data.infoCategories;
+    if(data.inventory) recipeInventory = data.inventory;
+    if(data.recipes) recipes = data.recipes;
+    if(data.savings) savingsGoals = data.savings;
+    if(data.level){
+      roadmapLevel = data.level.level || 1;
+      roadmapXP = data.level.xp || 0;
+    }
+    if(data.stats && data.stats.length) roadmapStats = data.stats;
+
+    await saveItems(); await saveCategories(); await saveCards(); await saveRewards();
+    await saveBuylist(); await saveBuylistCats(); await saveInfoCats();
+    await saveInventory(); await saveRecipes(); await saveSavings(); await saveLevel(); await saveStats();
+
+    render(); renderGoals(); renderLevelPlaque(); renderRewards(); renderBuylist(); renderSavings(); renderInfoGrid();
+    alert('Backup restored successfully' + (fbUser ? ' and synced to your account.' : '.'));
+  }catch(err){
+    console.error('Import failed', err);
+    alert('Could not read that backup file. Make sure it\u2019s an unmodified export from this app.');
+  }
+});
 
 async function loadAll(){
   try{
