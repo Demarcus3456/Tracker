@@ -1263,8 +1263,20 @@
       <input type="text" id="placeName" placeholder="e.g. Rooftop Bar">
     </div>
     <div class="field">
+      <label>Image</label>
+      <div id="placeImgPreviewWrap"></div>
+      <input type="file" id="placeImageInput" accept="image/*" style="display:none">
+      <div class="mediaBtnRow">
+        <button type="button" class="mediaBtn" id="placeImageBtn">Choose Image</button>
+        <button type="button" class="mediaBtn removeBtn" id="placeImageRemoveBtn" style="display:none;">Remove</button>
+      </div>
+    </div>
+    <div class="field">
       <label id="placeLocationLabel">Location</label>
       <input type="text" id="placeLocation" placeholder="e.g. Downtown">
+      <div class="mediaBtnRow">
+        <button type="button" class="mediaBtn" id="placeMapBtn">View on Map</button>
+      </div>
     </div>
     <div class="field">
       <label>Notes</label>
@@ -1716,7 +1728,7 @@ let datingPlaces = [];
 let travelPlaces = [];
 let currentPlacesKind = 'dating';
 let editingPlaceId = null;
-let placeDraft = {name:'', location:'', notes:'', visited:false};
+let placeDraft = {name:'', location:'', notes:'', visited:false, image:null};
 
 let savingsGoals = [];
 let editingSavingsId = null;
@@ -2771,6 +2783,10 @@ document.getElementById('placesHomeOverlay').addEventListener('click', (e)=>{
   if(e.target.id === 'placesHomeOverlay') e.currentTarget.classList.remove('open');
 });
 
+function mapsUrlFor(location){
+  return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(location);
+}
+
 function renderPlacesList(){
   const el = document.getElementById('placesListEl');
   const list = getPlacesArray(currentPlacesKind);
@@ -2780,21 +2796,57 @@ function renderPlacesList(){
     return;
   }
   el.innerHTML = list.map(p => `
-    <div class="invRow" data-id="${p.id}" style="${p.visited ? 'opacity:0.55;' : ''}">
+    <div class="invRow" data-id="${p.id}" style="${p.visited ? 'opacity:0.55;' : ''} align-items:center;">
+      ${p.image ? `<img src="${p.image}" alt="" style="width:38px; height:38px; border-radius:9px; object-fit:cover; flex:0 0 38px;">` : ''}
       <span class="invRow-name">${p.visited ? '\u2705 ' : ''}${escapeHtml(p.name)}</span>
-      ${p.location ? `<span class="invRow-amount">${escapeHtml(p.location)}</span>` : ''}
+      ${p.location ? `<a class="invRow-amount placeMapLink" data-loc="${escapeAttr(p.location)}" href="${mapsUrlFor(p.location)}" target="_blank" rel="noopener" style="text-decoration:underline;">${escapeHtml(p.location)} &#8599;</a>` : ''}
     </div>
   `).join('');
   el.querySelectorAll('.invRow').forEach(row=>{
-    row.addEventListener('click', ()=> openPlaceEdit(row.dataset.id));
+    row.addEventListener('click', (e)=>{
+      if(e.target.closest('.placeMapLink')) { e.stopPropagation(); return; }
+      openPlaceEdit(row.dataset.id);
+    });
   });
 }
 
 document.getElementById('placesAddBtn').addEventListener('click', ()=> openPlaceAdd());
 
+function renderPlaceImagePreview(){
+  const wrap = document.getElementById('placeImgPreviewWrap');
+  const removeBtn = document.getElementById('placeImageRemoveBtn');
+  if(placeDraft.image){
+    wrap.innerHTML = `<img class="imgPreview" src="${placeDraft.image}" alt="">`;
+    removeBtn.style.display = 'inline-block';
+  }else{
+    wrap.innerHTML = '';
+    removeBtn.style.display = 'none';
+  }
+}
+document.getElementById('placeImageBtn').addEventListener('click', ()=> document.getElementById('placeImageInput').click());
+document.getElementById('placeImageInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  try{
+    placeDraft.image = await fileToCompressedDataUrl(file);
+    renderPlaceImagePreview();
+  }catch(err){ console.error('Image processing failed', err); }
+  e.target.value = '';
+});
+document.getElementById('placeImageRemoveBtn').addEventListener('click', ()=>{
+  placeDraft.image = null;
+  renderPlaceImagePreview();
+});
+
+document.getElementById('placeMapBtn').addEventListener('click', ()=>{
+  const loc = document.getElementById('placeLocation').value.trim();
+  if(!loc){ document.getElementById('placeLocation').focus(); return; }
+  window.open(mapsUrlFor(loc), '_blank', 'noopener');
+});
+
 function openPlaceAdd(){
   editingPlaceId = null;
-  placeDraft = {name:'', location:'', notes:'', visited:false};
+  placeDraft = {name:'', location:'', notes:'', visited:false, image:null};
   document.getElementById('placeSheetTitle').textContent = 'Add Place';
   document.getElementById('placeName').value = '';
   document.getElementById('placeLocation').value = '';
@@ -2804,6 +2856,7 @@ function openPlaceAdd(){
   document.getElementById('placeLocation').placeholder = currentPlacesKind === 'dating' ? 'e.g. Downtown, near the pier' : 'e.g. Japan, Italy';
   document.getElementById('placeSave').textContent = 'Add Place';
   document.getElementById('placeDeleteRow').style.display = 'none';
+  renderPlaceImagePreview();
   blurActive();
   document.getElementById('placeOverlay').classList.add('open');
 }
@@ -2813,7 +2866,7 @@ function openPlaceEdit(id){
   const p = list.find(x=>x.id===id);
   if(!p) return;
   editingPlaceId = id;
-  placeDraft = {name:p.name, location:p.location||'', notes:p.notes||'', visited:!!p.visited};
+  placeDraft = {name:p.name, location:p.location||'', notes:p.notes||'', visited:!!p.visited, image:p.image||null};
   document.getElementById('placeSheetTitle').textContent = 'Edit Place';
   document.getElementById('placeName').value = p.name;
   document.getElementById('placeLocation').value = p.location || '';
@@ -2823,6 +2876,7 @@ function openPlaceEdit(id){
   document.getElementById('placeLocation').placeholder = currentPlacesKind === 'dating' ? 'e.g. Downtown, near the pier' : 'e.g. Japan, Italy';
   document.getElementById('placeSave').textContent = 'Save';
   document.getElementById('placeDeleteRow').style.display = 'flex';
+  renderPlaceImagePreview();
   blurActive();
   document.getElementById('placeOverlay').classList.add('open');
 }
@@ -2838,13 +2892,14 @@ document.getElementById('placeSave').addEventListener('click', async ()=>{
   const location = document.getElementById('placeLocation').value.trim();
   const notes = document.getElementById('placeNotes').value.trim();
   const visited = document.getElementById('placeVisited').checked;
+  const image = placeDraft.image || null;
 
   const list = getPlacesArray(currentPlacesKind);
   if(editingPlaceId){
     const p = list.find(x=>x.id===editingPlaceId);
-    p.name = name; p.location = location; p.notes = notes; p.visited = visited;
+    p.name = name; p.location = location; p.notes = notes; p.visited = visited; p.image = image;
   }else{
-    list.push({id: uid('pl'), name, location, notes, visited, addedAt: Date.now()});
+    list.push({id: uid('pl'), name, location, notes, visited, image, addedAt: Date.now()});
   }
   await savePlacesFor(currentPlacesKind);
   document.getElementById('placeOverlay').classList.remove('open');
