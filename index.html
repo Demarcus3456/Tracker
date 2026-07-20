@@ -127,6 +127,7 @@
   #invItemOverlay{z-index:43;}
   #recipeOverlay{z-index:45;}
   #recipeDetailOverlay{z-index:44;}
+  #recipeStepOverlay{z-index:46;}
 
   .iconGrid{display:flex; flex-wrap:wrap; gap:10px;}
   .iconBtn{
@@ -483,6 +484,21 @@
   }
   .ingSummary .have{color:#2e6b34;}
   .ingSummary .missing{color:#a8756f;}
+  .ingGroupHead{
+    font-family:'JetBrains Mono',monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:0.5px;
+    color:var(--muted); margin:14px 0 6px; padding-top:8px; border-top:1px solid var(--line);
+  }
+  .ingGroupHead:first-of-type{margin-top:0; padding-top:0; border-top:none;}
+
+  .stepCounter{
+    font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;
+    color:var(--muted); margin:-8px 0 10px;
+  }
+  .stepBar{background:var(--paper-dim); border:1.5px solid var(--ink); height:8px; border-radius:6px; overflow:hidden; margin-bottom:24px;}
+  .stepBar-fill{background:linear-gradient(180deg, #e8c069, var(--amber)); height:100%;}
+  .stepText{
+    font-size:19px; line-height:1.5; color:var(--ink); display:flex; align-items:center;
+  }
 
   .topbar{
     position:sticky; top:0; z-index:20;
@@ -1334,11 +1350,30 @@
       <div id="recipeDetailIngredients"></div>
     </div>
     <div class="field" id="recipeDetailNotesField" style="display:none;">
-      <label>Notes / Directions</label>
-      <div id="recipeDetailNotes" class="cdNotes"></div>
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <label style="margin:0;">Notes / Directions</label>
+        <button type="button" class="mediaBtn" id="recipeStepModeBtn" style="display:none;">Step by Step</button>
+      </div>
+      <div id="recipeDetailNotes" class="cdNotes" style="margin-top:8px;"></div>
     </div>
     <div class="sheet-actions">
       <button class="btn-cancel" id="recipeDetailClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet-overlay" id="recipeStepOverlay">
+  <div class="sheet" style="display:flex; flex-direction:column;">
+    <h2 id="recipeStepTitle">Step 1</h2>
+    <div class="stepCounter" id="recipeStepCounter">Step 1 of 1</div>
+    <div class="stepBar"><div class="stepBar-fill" id="recipeStepBarFill"></div></div>
+    <div class="stepText" id="recipeStepText" style="flex:1;"></div>
+    <div class="sheet-actions">
+      <button class="btn-cancel" id="recipeStepPrev">&larr; Back</button>
+      <button class="btn-save" id="recipeStepNext">Next &rarr;</button>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-cancel" id="recipeStepClose">Close</button>
     </div>
   </div>
 </div>
@@ -1624,6 +1659,8 @@ let recipes = [];
 let editingRecipeId = null;
 let recipeDraft = {title:'', image:null, ingredients:[], notes:''};
 let currentRecipeId = null;
+let currentRecipeSteps = [];
+let currentStepIndex = 0;
 let recipesSubTab = 'inventory';
 
 let savingsGoals = [];
@@ -2368,12 +2405,28 @@ async function fetchRecipeFromLink(){
       const fallbackImg = withSize || candidateImgs[0];
       if(fallbackImg) imgUrl = fallbackImg.getAttribute('src') || fallbackImg.getAttribute('data-src') || null;
     }
+    let imageAttempted = false, imageFailed = false;
     if(imgUrl){
+      imageAttempted = true;
       try{
         recipeDraft.image = await fetchImageFromUrl(imgUrl, url);
         renderRecipeImagePreview();
         gotImage = true;
-      }catch(imgErr){ console.error('Recipe image fetch failed', imgErr); }
+      }catch(imgErr){
+        console.error('Recipe image fetch via proxy failed', imgErr);
+        try{
+          const absUrl = new URL(imgUrl, url).href;
+          const directRes = await fetch(absUrl);
+          if(!directRes.ok) throw new Error('Direct fetch not ok');
+          const blob = await directRes.blob();
+          recipeDraft.image = await fileToCompressedDataUrl(blob);
+          renderRecipeImagePreview();
+          gotImage = true;
+        }catch(directErr){
+          console.error('Direct image fetch also failed', directErr);
+          imageFailed = true;
+        }
+      }
     }
 
     if(!gotTitle && !gotIngredients && !gotImage && !gotInstructions){
@@ -2383,7 +2436,9 @@ async function fetchRecipeFromLink(){
       if(gotIngredients) parts.push('ingredients');
       if(gotInstructions) parts.push('instructions');
       if(gotImage) parts.push('photo');
-      statusEl.textContent = `Filled in ${parts.length ? parts.join(', ') : 'the title'} — double-check before saving.`;
+      let msg = `Filled in ${parts.length ? parts.join(', ') : 'the title'} — double-check before saving.`;
+      if(imageAttempted && imageFailed) msg += ' (Found a photo but couldn\u2019t download it — try Scan Image or add one manually.)';
+      statusEl.textContent = msg;
     }
   }catch(e){
     console.error('Recipe fetch failed', e);
@@ -2525,33 +2580,39 @@ function openRecipeDetail(id){
   if(!r.ingredients.length){
     ingEl.innerHTML = `<div class="miniProgress-label">No ingredients listed</div>`;
   }else{
-    const haveCount = r.ingredients.filter(ing=>ingredientHave(ing.text)).length;
-    const missingCount = r.ingredients.length - haveCount;
-    const summary = `<div class="ingSummary"><span class="have">${haveCount} have</span><span class="missing">${missingCount} missing</span></div>`;
-    const rows = r.ingredients.map(ing=>{
-      const have = ingredientHave(ing.text);
-      return `
+    const missingList = r.ingredients.filter(ing=>!ingredientHave(ing.text));
+    const haveList = r.ingredients.filter(ing=>ingredientHave(ing.text));
+    const summary = `<div class="ingSummary"><span class="have">${haveList.length} have</span><span class="missing">${missingList.length} missing</span></div>`;
+    const buildGroup = (label, list, cls)=>{
+      if(!list.length) return '';
+      return `<div class="ingGroupHead ${cls}">${label}</div>` + list.map(ing=>`
         <div class="ingRow">
           <span class="ingRow-text">${escapeHtml(ing.text)}</span>
-          <span class="ingRow-badge ${have?'have':'missing'}">${have?'Have':'Missing'}</span>
+          <span class="ingRow-badge ${cls}">${cls==='have'?'Have':'Missing'}</span>
         </div>
-      `;
-    }).join('');
-    ingEl.innerHTML = summary + rows;
+      `).join('');
+    };
+    ingEl.innerHTML = summary + buildGroup('Need to buy', missingList, 'missing') + buildGroup('Already have', haveList, 'have');
   }
 
   const notesField = document.getElementById('recipeDetailNotesField');
+  const stepModeBtn = document.getElementById('recipeStepModeBtn');
   if(r.notes){
     notesField.style.display = 'block';
     const notesEl = document.getElementById('recipeDetailNotes');
     const steps = splitIntoSteps(r.notes);
     if(steps.length > 1){
       notesEl.innerHTML = `<ol class="stepList">${steps.map(s=>`<li>${escapeHtml(s)}</li>`).join('')}</ol>`;
+      currentRecipeSteps = steps;
+      stepModeBtn.style.display = 'inline-block';
     }else{
       notesEl.textContent = r.notes;
+      currentRecipeSteps = [];
+      stepModeBtn.style.display = 'none';
     }
   }else{
     notesField.style.display = 'none';
+    currentRecipeSteps = [];
   }
 
   blurActive();
@@ -2562,6 +2623,41 @@ document.getElementById('recipeDetailClose').addEventListener('click', ()=>{
 });
 document.getElementById('recipeDetailOverlay').addEventListener('click', (e)=>{
   if(e.target.id === 'recipeDetailOverlay') e.currentTarget.classList.remove('open');
+});
+
+// -- Step-by-step cooking mode --
+function renderRecipeStep(){
+  const total = currentRecipeSteps.length;
+  document.getElementById('recipeStepTitle').textContent = `Step ${currentStepIndex+1}`;
+  document.getElementById('recipeStepCounter').textContent = `Step ${currentStepIndex+1} of ${total}`;
+  document.getElementById('recipeStepBarFill').style.width = `${Math.round(((currentStepIndex+1)/total)*100)}%`;
+  document.getElementById('recipeStepText').textContent = currentRecipeSteps[currentStepIndex];
+  document.getElementById('recipeStepPrev').style.visibility = currentStepIndex === 0 ? 'hidden' : 'visible';
+  document.getElementById('recipeStepNext').textContent = (currentStepIndex === total-1) ? 'Done' : 'Next →';
+}
+document.getElementById('recipeStepModeBtn').addEventListener('click', ()=>{
+  if(!currentRecipeSteps.length) return;
+  currentStepIndex = 0;
+  renderRecipeStep();
+  blurActive();
+  document.getElementById('recipeStepOverlay').classList.add('open');
+});
+document.getElementById('recipeStepPrev').addEventListener('click', ()=>{
+  if(currentStepIndex > 0){ currentStepIndex--; renderRecipeStep(); }
+});
+document.getElementById('recipeStepNext').addEventListener('click', ()=>{
+  if(currentStepIndex < currentRecipeSteps.length - 1){
+    currentStepIndex++;
+    renderRecipeStep();
+  }else{
+    document.getElementById('recipeStepOverlay').classList.remove('open');
+  }
+});
+document.getElementById('recipeStepClose').addEventListener('click', ()=>{
+  document.getElementById('recipeStepOverlay').classList.remove('open');
+});
+document.getElementById('recipeStepOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'recipeStepOverlay') e.currentTarget.classList.remove('open');
 });
 
 function openInfoCatAdd(){
