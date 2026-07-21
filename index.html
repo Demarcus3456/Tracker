@@ -760,13 +760,14 @@
     cursor:pointer; transition:transform 0.12s ease;
   }
   .fab:active{transform:scale(0.92);}
-  .habitFab{z-index:45;}
+  .habitFab{z-index:45; bottom:calc(24px + env(safe-area-inset-bottom)) !important;}
 
   .sheet-overlay{
     position:fixed; inset:0; background:rgba(28,30,38,0.5); z-index:40;
     display:none; align-items:stretch;
   }
   .sheet-overlay.open{display:flex;}
+  #goalAddOverlay, #taskAddOverlay, #habitAddOverlay, #goalSettingsOverlay{z-index:42;}
   .sheet{
     background:var(--paper); width:100%; height:100dvh; max-height:100dvh; overflow-y:auto;
     -webkit-overflow-scrolling:touch;
@@ -948,7 +949,7 @@
     <button type="button" class="mediaBtn" id="trackerFiltersBtn" style="margin-top:10px;">Filters</button>
   </div>
 
-  <div class="stats" id="stats"></div>
+  <div class="filters" id="stats"></div>
   <div class="list" id="list"><div class="loading">Opening your tracker…</div></div>
 </div>
 
@@ -1355,7 +1356,6 @@
       <div id="gdTaskList"></div>
     </div>
     <div class="field" id="gdHabitsPane" style="display:none;">
-      <div class="tagline" style="margin:-2px 0 8px;">Recurring habits show up on your Calendar tab</div>
       <div id="gdHabitList"></div>
     </div>
   </div>
@@ -4656,7 +4656,20 @@ function render(){
   const counts = {};
   categories.forEach(c=>counts[c.id]=0);
   items.forEach(i=>counts[i.category]=(counts[i.category]||0)+1);
-  statsEl.innerHTML = categories.map(c=>`${escapeHtml(c.label)} ${counts[c.id]||0}`).join(' &nbsp;·&nbsp; ');
+
+  if(activeFilter === 'all' && categories.length){
+    const firstWithItems = categories.find(c=>counts[c.id] > 0) || categories[0];
+    activeFilter = firstWithItems.id;
+  }
+
+  statsEl.innerHTML = categories.map(c=>`<button class="chip ${activeFilter===c.id?'active':''}" data-c="${c.id}">${escapeHtml(c.label)} ${counts[c.id]||0}</button>`).join('');
+  statsEl.querySelectorAll('.chip[data-c]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      activeFilter = btn.dataset.c;
+      activeSubFilter = 'all';
+      render();
+    });
+  });
 
   let filtered = items.filter(i=>{
     if(activeFilter === 'all') return itemMatchesSubFilter(i);
