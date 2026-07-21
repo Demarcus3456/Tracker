@@ -719,6 +719,14 @@
   .sheetDivider{height:1px; background:var(--line); margin:4px 0 22px; opacity:0.7;}
 
   .epCounterRow{display:flex; align-items:center; justify-content:center; gap:24px; margin:12px 0 24px;}
+  .gpDisplay{
+    text-align:center; font-family:'Barlow Condensed',sans-serif; font-size:56px; font-weight:700; color:var(--teal);
+    margin:8px 0 4px;
+  }
+  #gpSlider{width:100%; margin:8px 0 20px; accent-color:var(--teal); height:8px;}
+  .gpQuickRow{display:flex; gap:8px; justify-content:center; margin-bottom:20px;}
+  .gpQuickRow button{flex:1;}
+
   .epCounterBtn{
     width:58px; height:58px; border-radius:50%; border:1.5px solid var(--ink); background:var(--card);
     font-family:'Barlow Condensed',sans-serif; font-size:30px; color:var(--ink); cursor:pointer;
@@ -1066,6 +1074,23 @@
     </div>
     <div class="sheet-actions">
       <button class="btn-cancel" id="epCounterClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet-overlay" id="gameProgressOverlay">
+  <div class="sheet" style="padding-bottom:calc(28px + env(safe-area-inset-bottom));">
+    <h2 id="gpTitle">Progress</h2>
+    <div class="gpDisplay" id="gpDisplay">0%</div>
+    <input type="range" id="gpSlider" min="0" max="100" step="1" value="0">
+    <div class="gpQuickRow">
+      <button type="button" class="mediaBtn" data-d="-5">&minus;5</button>
+      <button type="button" class="mediaBtn" data-d="-1">&minus;1</button>
+      <button type="button" class="mediaBtn" data-d="1">+1</button>
+      <button type="button" class="mediaBtn" data-d="5">+5</button>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-cancel" id="gpClose">Close</button>
     </div>
   </div>
 </div>
@@ -1680,7 +1705,7 @@
 const SWATCHES = ['#b8705c','#3f8f82','#bc9440','#7b6ca6','#5b7b8b','#4a7ba6','#8a9a4b','#c2685a','#a6873f','#5c7a99','#9a5c8f','#6b8a5c'];
 const DEFAULT_CATEGORIES = [
   {id:'anime', label:'Anime', color:'#b8705c'},
-  {id:'game', label:'Game', color:'#3f8f82'},
+  {id:'game', label:'Games', color:'#3f8f82'},
   {id:'music', label:'Music', color:'#bc9440'},
   {id:'movie', label:'Movie', color:'#7b6ca6'},
   {id:'book', label:'Book', color:'#5b7b8b'},
@@ -2062,6 +2087,8 @@ async function loadAll(){
   try{
     const res = await storageAdapter.get('shelf_categories');
     categories = res && res.value ? JSON.parse(res.value) : DEFAULT_CATEGORIES.slice();
+    const gameCat = categories.find(c=>c.id==='game');
+    if(gameCat && gameCat.label === 'Game'){ gameCat.label = 'Games'; saveCategories(); }
   }catch(e){
     categories = DEFAULT_CATEGORIES.slice();
   }
@@ -3765,14 +3792,16 @@ function render(){
     let longPressed = false;
     const item = items.find(i=>i.id===card.dataset.id);
     const isAnime = item && item.category === 'anime';
+    const isGame = item && item.category === 'game';
 
     const startPress = (e)=>{
-      if(!isAnime) return;
+      if(!isAnime && !isGame) return;
       longPressed = false;
       pressTimer = setTimeout(()=>{
         longPressed = true;
         if(navigator.vibrate) navigator.vibrate(15);
-        openEpisodeCounter(card.dataset.id);
+        if(isAnime) openEpisodeCounter(card.dataset.id);
+        else if(isGame) openEdit(card.dataset.id);
       }, 480);
     };
     const cancelPress = ()=>{
@@ -3798,7 +3827,8 @@ function render(){
           return;
         }
       }
-      openEdit(card.dataset.id);
+      if(isGame) openGameProgress(card.dataset.id);
+      else openEdit(card.dataset.id);
     });
   });
 }
@@ -3843,6 +3873,54 @@ document.getElementById('epCounterClose').addEventListener('click', ()=>{
 });
 document.getElementById('episodeCounterOverlay').addEventListener('click', (e)=>{
   if(e.target.id === 'episodeCounterOverlay') e.currentTarget.classList.remove('open');
+});
+
+// ---- Game progress quick editor (tap a Game card) ----
+let gameProgressId = null;
+
+function openGameProgress(id){
+  const item = items.find(i=>i.id===id);
+  if(!item) return;
+  gameProgressId = id;
+  document.getElementById('gpTitle').textContent = item.title;
+  document.getElementById('gpSlider').value = item.gamePercent || 0;
+  renderGameProgress();
+  blurActive();
+  document.getElementById('gameProgressOverlay').classList.add('open');
+}
+
+function renderGameProgress(){
+  const item = items.find(i=>i.id===gameProgressId);
+  if(!item) return;
+  document.getElementById('gpDisplay').textContent = (item.gamePercent || 0) + '%';
+}
+
+async function setGamePercent(pct){
+  const item = items.find(i=>i.id===gameProgressId);
+  if(!item) return;
+  item.gamePercent = Math.max(0, Math.min(100, pct));
+  item.updatedAt = Date.now();
+  document.getElementById('gpSlider').value = item.gamePercent;
+  renderGameProgress();
+  render();
+  await saveItems();
+}
+
+document.getElementById('gpSlider').addEventListener('input', (e)=>{
+  setGamePercent(parseInt(e.target.value, 10) || 0);
+});
+document.querySelectorAll('.gpQuickRow button[data-d]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const item = items.find(i=>i.id===gameProgressId);
+    if(!item) return;
+    setGamePercent((item.gamePercent || 0) + parseInt(btn.dataset.d, 10));
+  });
+});
+document.getElementById('gpClose').addEventListener('click', ()=>{
+  document.getElementById('gameProgressOverlay').classList.remove('open');
+});
+document.getElementById('gameProgressOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'gameProgressOverlay') e.currentTarget.classList.remove('open');
 });
 
 // ---- Nav / tab switching ----
