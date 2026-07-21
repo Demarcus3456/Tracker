@@ -3662,7 +3662,7 @@ function renderFilterCategoryChips(){
 function renderFilterStatusChips(){
   const el = document.getElementById('filterStatusChips');
   const opts = [{id:'all', label:'All'}, {id:'coming_soon', label:'Coming Soon'}];
-  if(filterDraft.category === 'anime'){
+  if(isEpisodicCategory(filterDraft.category)){
     opts.push({id:'in_progress', label:'Watching'}, {id:'completed', label:'Completed'});
   }else if(filterDraft.category === 'game'){
     opts.push({id:'in_progress', label:'Playing'}, {id:'completed', label:'Completed'});
@@ -3701,7 +3701,7 @@ function itemMatchesSubFilter(i){
   if(activeSubFilter === 'all') return true;
   if(activeSubFilter === 'coming_soon') return i.status === 'coming_soon';
   if(activeSubFilter === 'in_progress'){
-    if(i.category === 'anime'){
+    if(isEpisodicCategory(i.category)){
       const total = Number(i.epTotal) || 0, cur = Number(i.epCurrent) || 0;
       return cur > 0 && (total === 0 || cur < total);
     }
@@ -3711,7 +3711,7 @@ function itemMatchesSubFilter(i){
     }
   }
   if(activeSubFilter === 'completed'){
-    if(i.category === 'anime'){
+    if(isEpisodicCategory(i.category)){
       const total = Number(i.epTotal) || 0, cur = Number(i.epCurrent) || 0;
       return total > 0 && cur >= total;
     }
@@ -3791,7 +3791,7 @@ function render(){
     let pressTimer = null;
     let longPressed = false;
     const item = items.find(i=>i.id===card.dataset.id);
-    const isAnime = item && item.category === 'anime';
+    const isAnime = item && isEpisodicCategory(item.category);
     const isGame = item && item.category === 'game';
 
     const startPress = (e)=>{
@@ -5538,7 +5538,7 @@ function renderCategoryPicker(){
 
 function updateEpisodeFieldVisibility(){
   const wrap = document.getElementById('episodeFieldWrap');
-  if(wrap) wrap.style.display = (draft.category === 'anime') ? 'block' : 'none';
+  if(wrap) wrap.style.display = isEpisodicCategory(draft.category) ? 'block' : 'none';
 }
 
 function updateGamePercentVisibility(){
@@ -5675,8 +5675,8 @@ document.getElementById('btnSave').addEventListener('click', async ()=>{
   const notes = document.getElementById('fNotes').value.trim();
   const epCurrentRaw = parseInt(document.getElementById('fEpCurrent').value, 10);
   const epTotalRaw = parseInt(document.getElementById('fEpTotal').value, 10);
-  const epCurrent = (draft.category === 'anime' && !isNaN(epCurrentRaw)) ? Math.max(0, epCurrentRaw) : 0;
-  const epTotal = (draft.category === 'anime' && !isNaN(epTotalRaw)) ? Math.max(0, epTotalRaw) : 0;
+  const epCurrent = (isEpisodicCategory(draft.category) && !isNaN(epCurrentRaw)) ? Math.max(0, epCurrentRaw) : 0;
+  const epTotal = (isEpisodicCategory(draft.category) && !isNaN(epTotalRaw)) ? Math.max(0, epTotalRaw) : 0;
   const gamePercent = (draft.category === 'game') ? Math.max(0, Math.min(100, parseInt(document.getElementById('fGamePercent').value, 10) || 0)) : 0;
   const releaseDate = (draft.status === 'coming_soon') ? document.getElementById('fReleaseDate').value.trim() : '';
 
@@ -5753,20 +5753,34 @@ document.getElementById('tagCustomColor').addEventListener('input', (e)=>{
 });
 
 const LOCKED_CATEGORY_IDS = ['anime', 'game', 'movie'];
+const LOCKED_CATEGORY_LABELS = ['anime', 'game', 'games', 'movie', 'movies', 'tv series', 'tv show', 'tv'];
+function isCategoryLocked(c){
+  if(!c) return false;
+  if(LOCKED_CATEGORY_IDS.includes(c.id)) return true;
+  return LOCKED_CATEGORY_LABELS.includes((c.label||'').trim().toLowerCase());
+}
+
+const EPISODIC_CATEGORY_LABELS = ['anime', 'tv series', 'tv show', 'tv'];
+function isEpisodicCategory(catId){
+  if(catId === 'anime') return true;
+  const cat = categories.find(c=>c.id===catId);
+  if(!cat) return false;
+  return EPISODIC_CATEGORY_LABELS.includes((cat.label||'').trim().toLowerCase());
+}
 
 function renderTagManageList(){
   const el = document.getElementById('tagManageList');
   el.innerHTML = categories.map(c => `
     <div class="tagRow" data-id="${c.id}">
       <div class="tname"><span class="tdot" style="background:${c.color}"></span>${escapeHtml(c.label)}</div>
-      ${LOCKED_CATEGORY_IDS.includes(c.id) ? `<span class="tagLocked">Default</span>` : `<button class="delTagBtn">Remove</button>`}
+      ${isCategoryLocked(c) ? `<span class="tagLocked">Default</span>` : `<button class="delTagBtn">Remove</button>`}
     </div>
   `).join('');
   el.querySelectorAll('.delTagBtn').forEach(btn=>{
     btn.addEventListener('click', async (e)=>{
       const row = e.target.closest('.tagRow');
       const id = row.dataset.id;
-      if(LOCKED_CATEGORY_IDS.includes(id)) return;
+      if(isCategoryLocked(categories.find(c=>c.id===id))) return;
       if(categories.length <= 1) return;
       const inUse = items.some(i=>i.category===id);
       if(inUse && !confirm('Some items use this tab. Remove it and move them to "Other"?')) return;
