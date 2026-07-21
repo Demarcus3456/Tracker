@@ -124,11 +124,18 @@
   .miniProgress-label{font-family:'JetBrains Mono',monospace; font-size:9.5px; color:var(--text-dim); margin-top:4px; text-transform:uppercase; letter-spacing:0.3px;}
 
   .taskList{margin-top:8px;}
-  .taskRow{display:flex; align-items:center; gap:8px; padding:6px 0 6px 6px; border-bottom:1px solid var(--line);}
-  .taskRow input[type=checkbox]{width:17px; height:17px; accent-color:var(--teal); flex:0 0 auto;}
-  .taskRow .ttext{flex:1; font-size:13.5px;}
+  .taskRow{
+    display:flex; align-items:center; gap:10px; padding:11px 12px; margin-bottom:8px;
+    border:1.5px solid var(--line); border-radius:12px; background:linear-gradient(180deg, var(--card) 0%, var(--paper) 100%);
+    box-shadow:0 3px 8px rgba(28,30,38,0.06); transition:background 0.1s ease;
+  }
+  .taskRow:last-child{margin-bottom:0;}
+  .taskRow input[type=checkbox]{width:19px; height:19px; accent-color:var(--teal); flex:0 0 auto;}
+  .taskRow .ttext{flex:1; font-size:14px; color:var(--ink);}
   .taskRow .ttext.done{text-decoration:line-through; color:var(--text-dim);}
-  .taskRow .tdel{background:none; border:none; color:var(--rose); font-size:16px; cursor:pointer; padding:4px 8px; line-height:1;}
+  .taskRow .tdel{
+    background:none; border:none; color:var(--rose); font-size:17px; cursor:pointer; padding:4px 6px; line-height:1; flex:0 0 auto;
+  }
 
   .dayChipRow{display:flex; gap:5px; margin:8px 0;}
   .dayChipRow button{
@@ -572,6 +579,9 @@
     transition:transform 0.1s ease;
   }
   .goalRow:active{background:var(--paper-dim); transform:translateY(1px);}
+  .goalRow-inner{display:flex; align-items:center; gap:12px;}
+  .goalRow-thumb{width:50px; height:50px; border-radius:12px; object-fit:cover; flex:0 0 50px;}
+  .goalRow-body{flex:1; min-width:0;}
   .goalRow-top{display:flex; align-items:center; gap:8px;}
   .goalRow-title{flex:1; font-size:14.5px; font-weight:600; color:var(--ink);}
   .goalRow-title.done{text-decoration:line-through; color:var(--text-dim);}
@@ -770,6 +780,12 @@
   .sheet h2{
     font-family:'Barlow Condensed',sans-serif; text-transform:uppercase; font-size:22px; margin:0 0 14px;
   }
+  .sheetClose{
+    position:absolute; top:calc(20px + env(safe-area-inset-top)); right:16px; width:34px; height:34px; border-radius:50%;
+    border:1.5px solid var(--ink); background:var(--card); color:var(--ink); font-size:18px; line-height:1;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:5;
+  }
+  .sheetClose:active{background:var(--paper-dim);}
   .field{margin-bottom:20px;}
   .sheetDivider{height:1px; background:var(--line); margin:4px 0 22px; opacity:0.7;}
 
@@ -881,18 +897,27 @@
 
   .loading{padding:40px; text-align:center; color:var(--muted); font-family:'JetBrains Mono',monospace; font-size:12px;}
 
-  .accountBar{
-    position:relative; z-index:22; background:var(--ink); color:var(--paper);
-    display:flex; align-items:center; justify-content:space-between; gap:10px;
-    padding:calc(8px + env(safe-area-inset-top)) 14px 8px;
-    font-family:'JetBrains Mono',monospace; font-size:10.5px;
+  .acctMenu{position:fixed; top:calc(10px + env(safe-area-inset-top)); right:12px; z-index:50;}
+  .acctMenuBtn{
+    width:38px; height:38px; border-radius:50%; border:1.5px solid var(--ink); background:var(--card);
+    color:var(--ink); font-size:20px; line-height:1; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; box-shadow:0 4px 10px rgba(28,30,38,0.18);
   }
-  .accountBar #accountStatus{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;}
-  .accountBar button{
-    flex:0 0 auto; background:none; border:1.5px solid var(--paper); color:var(--paper);
-    padding:6px 10px; font-family:'JetBrains Mono',monospace; font-size:10px; text-transform:uppercase;
-    cursor:pointer;
+  .acctDropdown{
+    display:none; flex-direction:column; gap:8px; position:absolute; top:46px; right:0; min-width:210px;
+    background:var(--paper); border:1.5px solid var(--ink); border-radius:14px; padding:12px;
+    box-shadow:0 12px 28px rgba(28,30,38,0.22);
   }
+  .acctDropdown.open{display:flex;}
+  .acctDropdown-status{
+    font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-dim);
+    padding:2px 2px 8px; border-bottom:1px solid var(--line); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .acctDropdown button{
+    background:var(--card); border:1.5px solid var(--line); color:var(--text); border-radius:10px; padding:9px 12px;
+    font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase; cursor:pointer; text-align:left;
+  }
+  .acctDropdown button:active{background:var(--paper-dim);}
 
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -903,12 +928,15 @@
 </head>
 <body>
 
-<div class="accountBar" id="accountBar">
-  <span id="accountStatus">Not signed in</span>
-  <button id="exportBtn" style="margin-right:6px;">Export</button>
-  <button id="importBtn" style="margin-right:6px;">Import</button>
-  <input type="file" id="importFileInput" accept="application/json" style="display:none;">
-  <button id="accountBtn">Sign in with Google</button>
+<div class="acctMenu" id="acctMenu">
+  <button class="acctMenuBtn" id="acctMenuBtn" title="Account">&#8942;</button>
+  <div class="acctDropdown" id="acctDropdown">
+    <div class="acctDropdown-status" id="accountStatus">Not signed in</div>
+    <button id="exportBtn">Export Backup</button>
+    <button id="importBtn">Import Backup</button>
+    <input type="file" id="importFileInput" accept="application/json" style="display:none;">
+    <button id="accountBtn">Sign in with Google</button>
+  </div>
 </div>
 
 <div id="view-tracker" class="view">
@@ -1246,6 +1274,7 @@
 
 <div class="sheet-overlay" id="cardOverlay">
   <div class="sheet">
+    <button class="sheetClose" id="cSheetCloseBtn">&times;</button>
     <h2 id="cardSheetTitle">Add Card</h2>
     <div class="field">
       <label>Title</label>
@@ -1281,7 +1310,6 @@
       <textarea id="cNotes" placeholder="Why this goal matters, how you'll get there..."></textarea>
     </div>
     <div class="sheet-actions">
-      <button class="btn-cancel" id="cBtnCancel">Cancel</button>
       <button class="btn-save" id="cBtnSave">Save</button>
     </div>
     <div class="sheet-actions" id="cDeleteRow" style="display:none;">
@@ -1292,26 +1320,23 @@
 
 <div class="sheet-overlay" id="cardDetailOverlay">
   <div class="sheet">
+    <button class="sheetClose" id="cardDetailCloseBtn">&times;</button>
     <div id="cardDetailBanner" class="cdBanner"></div>
     <div class="field">
       <label>Goals</label>
+      <div class="tagline" style="margin:-2px 0 8px;">Tap a goal to open it, press and hold for settings</div>
       <div id="cardGoalsList"></div>
-    </div>
-    <div class="sheet-actions">
-      <button class="btn-cancel" id="cardDetailCloseBtn">Close</button>
     </div>
   </div>
 </div>
 
 <div class="sheet-overlay" id="goalAddOverlay">
   <div class="sheet">
+    <button class="sheetClose" id="cardGoalCancelBtn">&times;</button>
     <h2>Add Goal</h2>
     <div class="field">
       <label>Goal name</label>
       <input type="text" id="cardGoalInput" placeholder="e.g. School">
-    </div>
-    <div class="sheet-actions">
-      <button class="btn-cancel" id="cardGoalCancelBtn">Cancel</button>
     </div>
     <div class="sheet-actions">
       <button class="btn-save" id="cardGoalAddBtn">Save Goal</button>
@@ -1321,11 +1346,8 @@
 
 <div class="sheet-overlay" id="goalDetailOverlay">
   <div class="sheet">
-    <h2>Goal</h2>
-    <div class="field">
-      <label>Goal name</label>
-      <input type="text" id="gdTitle">
-    </div>
+    <button class="sheetClose" id="gdBtnClose">&times;</button>
+    <h2 id="gdContentTitle">Goal</h2>
     <div class="seg" id="gdSubTabs" style="margin-bottom:14px;">
       <button type="button" data-v="tasks" class="sel">Sub Tasks</button>
       <button type="button" data-v="habits">Habits</button>
@@ -1337,24 +1359,42 @@
       <div class="tagline" style="margin:-2px 0 8px;">Recurring habits show up on your Calendar tab</div>
       <div id="gdHabitList"></div>
     </div>
-    <div class="sheet-actions">
-      <button class="btn-cancel" id="gdBtnClose">Close</button>
+  </div>
+</div>
+
+<div class="sheet-overlay" id="goalSettingsOverlay">
+  <div class="sheet">
+    <button class="sheetClose" id="gsBtnClose">&times;</button>
+    <h2>Goal Settings</h2>
+    <div class="field">
+      <label>Goal name</label>
+      <input type="text" id="gsTitle">
+    </div>
+    <div class="field">
+      <label>Goal Image (optional)</label>
+      <div id="gsImgPreviewWrap"></div>
+      <input type="file" id="gsImageInput" accept="image/*" style="display:none">
+      <div class="mediaBtnRow">
+        <button type="button" class="mediaBtn" id="gsImageBtn">Choose Image</button>
+        <button type="button" class="mediaBtn removeBtn" id="gsImageRemoveBtn" style="display:none;">Remove</button>
+      </div>
     </div>
     <div class="sheet-actions">
-      <button class="btn-delete" id="gdBtnDelete">Delete Goal</button>
+      <button class="btn-save" id="gsBtnSave">Save</button>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-delete" id="gsBtnDelete">Delete Goal</button>
     </div>
   </div>
 </div>
 
 <div class="sheet-overlay" id="taskAddOverlay">
   <div class="sheet">
+    <button class="sheetClose" id="gdTaskCancelBtn">&times;</button>
     <h2>Add Sub Task</h2>
     <div class="field">
       <label>Task</label>
       <input type="text" id="gdTaskInput" placeholder="e.g. Finish worksheet">
-    </div>
-    <div class="sheet-actions">
-      <button class="btn-cancel" id="gdTaskCancelBtn">Cancel</button>
     </div>
     <div class="sheet-actions">
       <button class="btn-save" id="gdTaskAddBtn">Save Task</button>
@@ -1364,6 +1404,7 @@
 
 <div class="sheet-overlay" id="habitAddOverlay">
   <div class="sheet">
+    <button class="sheetClose" id="gdHabitCancelBtn">&times;</button>
     <h2>Add Habit</h2>
     <div class="field">
       <label>Habit name</label>
@@ -1384,9 +1425,6 @@
     <div class="field">
       <label>Time (optional)</label>
       <input type="time" id="gdHabitTime">
-    </div>
-    <div class="sheet-actions">
-      <button class="btn-cancel" id="gdHabitCancelBtn">Cancel</button>
     </div>
     <div class="sheet-actions">
       <button class="btn-save" id="gdHabitAddBtn">Save Habit</button>
@@ -2261,9 +2299,22 @@ function exportAllData(){
   document.body.removeChild(a);
   setTimeout(()=> URL.revokeObjectURL(url), 1000);
 }
-document.getElementById('exportBtn').addEventListener('click', exportAllData);
+document.getElementById('acctMenuBtn').addEventListener('click', (e)=>{
+  e.stopPropagation();
+  document.getElementById('acctDropdown').classList.toggle('open');
+});
+document.addEventListener('click', (e)=>{
+  const menu = document.getElementById('acctMenu');
+  if(!menu.contains(e.target)) document.getElementById('acctDropdown').classList.remove('open');
+});
+document.getElementById('accountBtn').addEventListener('click', ()=>{
+  document.getElementById('acctDropdown').classList.remove('open');
+});
+
+document.getElementById('exportBtn').addEventListener('click', ()=>{ exportAllData(); document.getElementById('acctDropdown').classList.remove('open'); });
 
 document.getElementById('importBtn').addEventListener('click', ()=>{
+  document.getElementById('acctDropdown').classList.remove('open');
   document.getElementById('importFileInput').click();
 });
 document.getElementById('importFileInput').addEventListener('change', async (e)=>{
@@ -2340,13 +2391,13 @@ async function loadAll(){
           image: entry.image || null,
           color: entry.color || SWATCHES[0],
           goals: entry.milestones.map(m => ({
-            id: m.id, text: m.text, tasks: m.tasks || [], habits: m.habits || []
+            id: m.id, text: m.text, tasks: m.tasks || [], habits: m.habits || [], image: m.image || null
           })),
           updatedAt: entry.updatedAt || Date.now()
         };
       }
       entry.goals = entry.goals || [];
-      entry.goals.forEach(g=>{ if(!g.tasks) g.tasks = []; if(!g.habits) g.habits = []; });
+      entry.goals.forEach(g=>{ if(!g.tasks) g.tasks = []; if(!g.habits) g.habits = []; if(g.image === undefined) g.image = null; });
       if(!entry.color) entry.color = SWATCHES[0];
       if(entry.image === undefined) entry.image = null;
       return entry;
@@ -5323,7 +5374,7 @@ document.getElementById('cImageRemoveBtn').addEventListener('click', ()=>{
   renderCardImagePreview();
 });
 
-document.getElementById('cBtnCancel').addEventListener('click', ()=> cardOverlay.classList.remove('open'));
+document.getElementById('cSheetCloseBtn').addEventListener('click', ()=> cardOverlay.classList.remove('open'));
 cardOverlay.addEventListener('click', (e)=>{ if(e.target === cardOverlay) cardOverlay.classList.remove('open'); });
 
 document.getElementById('cBtnSave').addEventListener('click', async ()=>{
@@ -5417,19 +5468,45 @@ function renderCardGoalsList(card){
     const {total, done, pct, complete} = goalTaskProgress(g);
     return `
       <div class="goalRow" data-id="${g.id}">
-        <div class="goalRow-top">
-          <span class="goalRow-title ${complete?'done':''}">${escapeHtml(g.text)}</span>
-          <span class="goalRow-arrow">&#8250;</span>
+        <div class="goalRow-inner">
+          ${g.image ? `<img class="goalRow-thumb" src="${g.image}" alt="">` : ''}
+          <div class="goalRow-body">
+            <div class="goalRow-top">
+              <span class="goalRow-title ${complete?'done':''}">${escapeHtml(g.text)}</span>
+              <span class="goalRow-arrow">&#8250;</span>
+            </div>
+            ${total>0 ? `
+              <div class="miniProgress"><div class="miniProgress-fill" style="width:${pct}%"></div></div>
+              <div class="miniProgress-label">${done}/${total} tasks</div>
+            ` : `<div class="miniProgress-label">No tasks yet</div>`}
+          </div>
         </div>
-        ${total>0 ? `
-          <div class="miniProgress"><div class="miniProgress-fill" style="width:${pct}%"></div></div>
-          <div class="miniProgress-label">${done}/${total} tasks</div>
-        ` : `<div class="miniProgress-label">No tasks yet</div>`}
       </div>
     `;
   }).join('');
   el.querySelectorAll('.goalRow').forEach(row=>{
-    row.addEventListener('click', ()=> openGoalDetail(card.id, row.dataset.id));
+    let pressTimer = null;
+    let longPressed = false;
+    const startPress = ()=>{
+      longPressed = false;
+      pressTimer = setTimeout(()=>{
+        longPressed = true;
+        if(navigator.vibrate) navigator.vibrate(15);
+        openGoalSettings(card.id, row.dataset.id);
+      }, 480);
+    };
+    const cancelPress = ()=>{ if(pressTimer){ clearTimeout(pressTimer); pressTimer = null; } };
+    row.addEventListener('touchstart', startPress, {passive:true});
+    row.addEventListener('touchend', cancelPress);
+    row.addEventListener('touchmove', cancelPress);
+    row.addEventListener('touchcancel', cancelPress);
+    row.addEventListener('mousedown', startPress);
+    row.addEventListener('mouseup', cancelPress);
+    row.addEventListener('mouseleave', cancelPress);
+    row.addEventListener('click', ()=>{
+      if(longPressed){ longPressed = false; return; }
+      openGoalDetail(card.id, row.dataset.id);
+    });
   });
 }
 
@@ -5456,7 +5533,7 @@ document.getElementById('cardGoalAddBtn').addEventListener('click', async ()=>{
   if(!text || !currentCardId){ input.focus(); return; }
   const card = cards.find(c=>c.id===currentCardId);
   if(!card) return;
-  card.goals.push({id: uid('g'), text, tasks:[], habits:[]});
+  card.goals.push({id: uid('g'), text, tasks:[], habits:[], image:null});
   card.updatedAt = Date.now();
   closeGoalAdd();
   renderCardGoalsList(card);
@@ -5505,10 +5582,13 @@ function renderGoalDetail(){
   const goal = card.goals.find(g=>g.id===currentGoalId);
   if(!goal) return;
 
-  document.getElementById('gdTitle').value = goal.text;
+  document.getElementById('gdContentTitle').textContent = goal.text;
 
   const el = document.getElementById('gdTaskList');
   const tasks = goal.tasks || [];
+  if(!tasks.length){
+    el.innerHTML = `<div class="tagline" style="margin:4px 0 10px;">No sub tasks yet — tap the + button to add one.</div>`;
+  }else{
   el.innerHTML = tasks.map(t => `
     <div class="taskRow" data-tid="${t.id}">
       <input type="checkbox" ${t.done?'checked':''}>
@@ -5516,6 +5596,7 @@ function renderGoalDetail(){
       <button class="tdel">&times;</button>
     </div>
   `).join('');
+  }
   el.querySelectorAll('.taskRow').forEach(row=>{
     const tid = row.dataset.tid;
     row.querySelector('input[type=checkbox]').addEventListener('change', async (e)=>{
@@ -5676,20 +5757,6 @@ document.getElementById('gdHabitInput').addEventListener('keydown', (e)=>{
   if(e.key === 'Enter'){ e.preventDefault(); document.getElementById('gdHabitAddBtn').click(); }
 });
 
-document.getElementById('gdTitle').addEventListener('change', async (e)=>{
-  const card = cards.find(c=>c.id===currentCardId);
-  if(!card) return;
-  const goal = card.goals.find(g=>g.id===currentGoalId);
-  if(!goal) return;
-  const text = e.target.value.trim();
-  if(!text){ e.target.value = goal.text; return; }
-  goal.text = text;
-  card.updatedAt = Date.now();
-  renderCardGoalsList(card);
-  renderGoals();
-  await saveCards();
-});
-
 const taskAddOverlay = document.getElementById('taskAddOverlay');
 const gdTaskFab = document.getElementById('gdTaskFab');
 function openTaskAdd(){
@@ -5738,12 +5805,82 @@ function closeGoalDetail(){
 document.getElementById('gdBtnClose').addEventListener('click', closeGoalDetail);
 goalDetailOverlay.addEventListener('click', (e)=>{ if(e.target === goalDetailOverlay) closeGoalDetail(); });
 
-document.getElementById('gdBtnDelete').addEventListener('click', async ()=>{
+// ---- Goal Settings sheet (name, image, delete) — opened via long-press ----
+const goalSettingsOverlay = document.getElementById('goalSettingsOverlay');
+let goalSettingsDraft = {image: null};
+
+function renderGsImagePreview(){
+  const wrap = document.getElementById('gsImgPreviewWrap');
+  const removeBtn = document.getElementById('gsImageRemoveBtn');
+  if(goalSettingsDraft.image){
+    wrap.innerHTML = `<img class="imgPreview" src="${goalSettingsDraft.image}" alt="">`;
+    removeBtn.style.display = 'inline-block';
+  }else{
+    wrap.innerHTML = '';
+    removeBtn.style.display = 'none';
+  }
+}
+
+function openGoalSettings(cardId, goalId){
+  const card = cards.find(c=>c.id===cardId);
+  if(!card) return;
+  const goal = card.goals.find(g=>g.id===goalId);
+  if(!goal) return;
+  currentCardId = cardId;
+  currentGoalId = goalId;
+  document.getElementById('gsTitle').value = goal.text;
+  goalSettingsDraft = {image: goal.image || null};
+  renderGsImagePreview();
+  blurActive();
+  goalSettingsOverlay.classList.add('open');
+}
+function closeGoalSettings(){
+  goalSettingsOverlay.classList.remove('open');
+}
+document.getElementById('gsBtnClose').addEventListener('click', closeGoalSettings);
+goalSettingsOverlay.addEventListener('click', (e)=>{ if(e.target === goalSettingsOverlay) closeGoalSettings(); });
+
+document.getElementById('gsImageBtn').addEventListener('click', ()=>{
+  document.getElementById('gsImageInput').click();
+});
+document.getElementById('gsImageInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  try{
+    goalSettingsDraft.image = await fileToCompressedDataUrl(file);
+    renderGsImagePreview();
+  }catch(err){ console.error('Image processing failed', err); }
+  e.target.value = '';
+});
+document.getElementById('gsImageRemoveBtn').addEventListener('click', ()=>{
+  goalSettingsDraft.image = null;
+  renderGsImagePreview();
+});
+
+document.getElementById('gsBtnSave').addEventListener('click', async ()=>{
+  const input = document.getElementById('gsTitle');
+  const text = input.value.trim();
+  if(!text){ input.focus(); return; }
+  const card = cards.find(c=>c.id===currentCardId);
+  if(!card) return;
+  const goal = card.goals.find(g=>g.id===currentGoalId);
+  if(!goal) return;
+  goal.text = text;
+  goal.image = goalSettingsDraft.image || null;
+  card.updatedAt = Date.now();
+  closeGoalSettings();
+  renderCardGoalsList(card);
+  renderGoals();
+  await saveCards();
+});
+
+document.getElementById('gsBtnDelete').addEventListener('click', async ()=>{
   const card = cards.find(c=>c.id===currentCardId);
   if(!card) return;
   card.goals = card.goals.filter(g=>g.id!==currentGoalId);
   card.updatedAt = Date.now();
-  closeGoalDetail();
+  closeGoalSettings();
+  if(goalDetailOverlay.classList.contains('open')) closeGoalDetail();
   renderCardGoalsList(card);
   renderGoals();
   await saveCards();
