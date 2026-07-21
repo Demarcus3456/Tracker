@@ -1403,13 +1403,11 @@
 <div class="sheet-overlay" id="placesHomeOverlay">
   <div class="sheet">
     <h2 id="placesHomeTitle">Places</h2>
-    <div class="mediaBtnRow">
-      <button type="button" class="btn-save" id="placesAddBtn" style="flex:1; border-radius:16px;">+ Add Place</button>
-    </div>
-    <div id="placesListEl" style="margin-top:14px;"></div>
+    <div id="placesListEl" style="margin-top:4px;"></div>
     <div class="sheet-actions">
       <button class="btn-cancel" id="placesHomeClose">Close</button>
     </div>
+    <button type="button" class="fab" id="placesAddBtn">+</button>
   </div>
 </div>
 
@@ -1516,20 +1514,16 @@
       <button type="button" data-v="recipes">Recipes</button>
     </div>
     <div id="recipesInventoryView" style="margin-top:18px;">
-      <div class="mediaBtnRow">
-        <button type="button" class="btn-save" id="invAddBtn" style="flex:1; border-radius:16px;">+ Add Item</button>
-      </div>
-      <div id="inventoryList" style="margin-top:14px;"></div>
+      <div id="inventoryList" style="margin-top:4px;"></div>
     </div>
     <div id="recipesListView" style="display:none; margin-top:18px;">
-      <div class="mediaBtnRow">
-        <button type="button" class="btn-save" id="recipeAddBtn" style="flex:1; border-radius:16px;">+ Add Recipe</button>
-      </div>
-      <div id="recipesListEl" style="margin-top:14px;"></div>
+      <div id="recipesListEl" style="margin-top:4px;"></div>
     </div>
     <div class="sheet-actions">
       <button class="btn-cancel" id="recipesHomeClose">Close</button>
     </div>
+    <button type="button" class="fab" id="invAddBtn">+</button>
+    <button type="button" class="fab" id="recipeAddBtn" style="display:none;">+</button>
   </div>
 </div>
 
@@ -2422,6 +2416,8 @@ function openRecipesHome(){
   });
   document.getElementById('recipesInventoryView').style.display = 'block';
   document.getElementById('recipesListView').style.display = 'none';
+  document.getElementById('invAddBtn').style.display = 'flex';
+  document.getElementById('recipeAddBtn').style.display = 'none';
   renderInventoryList();
   renderRecipesList();
   blurActive();
@@ -2440,6 +2436,8 @@ document.getElementById('recipesSubTabs').addEventListener('click', (e)=>{
   document.querySelectorAll('#recipesSubTabs button').forEach(b=>b.classList.toggle('sel', b===btn));
   document.getElementById('recipesInventoryView').style.display = recipesSubTab === 'inventory' ? 'block' : 'none';
   document.getElementById('recipesListView').style.display = recipesSubTab === 'recipes' ? 'block' : 'none';
+  document.getElementById('invAddBtn').style.display = recipesSubTab === 'inventory' ? 'flex' : 'none';
+  document.getElementById('recipeAddBtn').style.display = recipesSubTab === 'recipes' ? 'flex' : 'none';
 });
 
 // -- Inventory --
