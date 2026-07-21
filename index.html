@@ -3236,8 +3236,17 @@ function parseRecipePdfLines(rawLines){
     if(title && l === title) return; // skip a repeated running header on later pages
     if(ingHeaderPattern.test(l)){ section = 'ingredients'; return; }
     if(instrHeaderPattern.test(l)){ section = 'instructions'; return; }
-    if(section === 'ingredients') ingredients.push(l);
-    else if(section === 'instructions') instructions.push(l);
+    if(section === 'ingredients'){
+      ingredients.push(l);
+    }else if(section === 'instructions'){
+      // A new numbered step starts a new entry; anything else is a wrapped continuation
+      // of the previous step's text (PDFs break long steps across multiple lines).
+      if(/^\d+[.)]\s/.test(l) || !instructions.length){
+        instructions.push(l);
+      }else{
+        instructions[instructions.length-1] += ' ' + l;
+      }
+    }
   });
 
   return {title, ingredients, instructions};
@@ -3286,7 +3295,7 @@ document.getElementById('recipePdfInput').addEventListener('change', async (e)=>
           prevEndX = startX + (item.width || 0);
         });
         const line = stripOcrBullet(text.trim());
-        if(line.length > 1 && !isLikelyJunkOcrLine(line)) allLines.push(line);
+        if(line.length > 1) allLines.push(line);
       });
     }
 
