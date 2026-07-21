@@ -137,7 +137,24 @@
   }
   .dayChipRow button.sel{background:linear-gradient(180deg, #3a4256, var(--ink)); color:var(--paper); border-color:var(--ink);}
 
+  .habitAddBox{
+    border:1.5px solid var(--ink); border-radius:14px; background:linear-gradient(180deg, var(--card) 0%, var(--paper) 100%);
+    box-shadow:0 4px 10px rgba(28,30,38,0.08); padding:14px; margin-top:8px;
+  }
+  .habitAddBox-label{
+    display:block; font-family:'JetBrains Mono',monospace; font-size:10px; text-transform:uppercase;
+    letter-spacing:0.5px; color:var(--muted); margin:10px 0 4px;
+  }
+  .habitAddBox input[type=time]{
+    width:100%; padding:12px 14px; border:1.5px solid var(--line); background:var(--card); border-radius:14px;
+    font-family:'Inter',sans-serif; font-size:15px; color:var(--text); outline:none;
+    min-height:44px; box-shadow:inset 0 2px 4px rgba(28,30,38,0.06);
+  }
+  .habitAddBox input[type=time]:focus{border-color:var(--amber);}
+  .habitAddBox .mediaBtnRow{margin-top:12px;}
+
   .habitEditRow{display:flex; align-items:center; gap:8px; padding:7px 0 7px 6px; border-bottom:1px solid var(--line);}
+  .habitEditRow input[type=checkbox]{width:17px; height:17px; accent-color:var(--teal); flex:0 0 auto;}
   .habitEditRow-main{flex:1; min-width:0;}
   .habitEditRow-text{font-size:13.5px;}
   .habitEditRow-meta{font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); margin-top:2px;}
@@ -1316,19 +1333,25 @@
     <div class="field" id="gdHabitsPane" style="display:none;">
       <div class="tagline" style="margin:-2px 0 8px;">Recurring habits show up on your Calendar tab</div>
       <div id="gdHabitList"></div>
-      <input type="text" id="gdHabitInput" placeholder="Add a habit...">
-      <div class="dayChipRow" id="gdHabitDays">
-        <button type="button" data-d="0">S</button>
-        <button type="button" data-d="1">M</button>
-        <button type="button" data-d="2">T</button>
-        <button type="button" data-d="3">W</button>
-        <button type="button" data-d="4">T</button>
-        <button type="button" data-d="5">F</button>
-        <button type="button" data-d="6">S</button>
-      </div>
-      <div class="mediaBtnRow">
+      <button type="button" class="mediaBtn" id="gdHabitAddToggle" style="width:100%; margin-top:6px;">+ Add Habit</button>
+      <div class="habitAddBox" id="gdHabitAddBox" style="display:none;">
+        <input type="text" id="gdHabitInput" placeholder="Habit name...">
+        <label class="habitAddBox-label">Repeats</label>
+        <div class="dayChipRow" id="gdHabitDays">
+          <button type="button" data-d="0">S</button>
+          <button type="button" data-d="1">M</button>
+          <button type="button" data-d="2">T</button>
+          <button type="button" data-d="3">W</button>
+          <button type="button" data-d="4">T</button>
+          <button type="button" data-d="5">F</button>
+          <button type="button" data-d="6">S</button>
+        </div>
+        <label class="habitAddBox-label">Time (optional)</label>
         <input type="time" id="gdHabitTime">
-        <button type="button" class="mediaBtn" id="gdHabitAddBtn">Add Habit</button>
+        <div class="mediaBtnRow">
+          <button type="button" class="mediaBtn" id="gdHabitCancelBtn">Cancel</button>
+          <button type="button" class="mediaBtn" id="gdHabitAddBtn">Save Habit</button>
+        </div>
       </div>
     </div>
     <div class="sheet-actions">
@@ -3803,13 +3826,19 @@ function renderCalendarHabits(now){
     return;
   }
 
-  el.innerHTML = entries.map((e, i)=> {
+  const pending = entries.filter(e=>!e.done);
+  if(!pending.length){
+    el.innerHTML = `<div class="tagline" style="margin:0;">\u{1F389} All habits done for today. Uncheck a mistake from the goal's Habits tab in Roadmaps.</div>`;
+    return;
+  }
+
+  el.innerHTML = pending.map((e, i)=> {
     const streak = habitStreak(e.habit);
     return `
-    <div class="habitRow ${e.done?'done':''}" data-i="${i}">
-      <input type="checkbox" ${e.done?'checked':''}>
+    <div class="habitRow" data-i="${i}">
+      <input type="checkbox">
       <div class="habitRow-main">
-        <div class="habitRow-text ${e.done?'done':''}">${escapeHtml(e.habit.text)}</div>
+        <div class="habitRow-text">${escapeHtml(e.habit.text)}</div>
         <div class="habitRow-meta">${escapeHtml(e.card.title)} \u2022 ${escapeHtml(e.goal.text)}${streak>0 ? ` \u2022 \u{1F525} ${streak} day${streak===1?'':'s'}` : ''}</div>
       </div>
       ${e.habit.time ? `<span class="habitRow-time">${escapeHtml(e.habit.time)}</span>` : ''}
@@ -3818,13 +3847,12 @@ function renderCalendarHabits(now){
   }).join('');
 
   el.querySelectorAll('.habitRow').forEach(row=>{
-    const entry = entries[Number(row.dataset.i)];
+    const entry = pending[Number(row.dataset.i)];
     row.querySelector('input[type=checkbox]').addEventListener('change', async (e2)=>{
+      if(!e2.target.checked) return;
       entry.habit.doneDates = entry.habit.doneDates || {};
-      const newDone = e2.target.checked;
-      if(newDone) entry.habit.doneDates[dateKey] = true;
-      else delete entry.habit.doneDates[dateKey];
-      awardPointsForHabitToggle(entry.card, newDone);
+      entry.habit.doneDates[dateKey] = true;
+      awardPointsForHabitToggle(entry.card, true);
       entry.card.updatedAt = Date.now();
       renderCalendarHabits(now);
       renderRewards();
@@ -5395,6 +5423,7 @@ function openGoalDetail(cardId, goalId){
   document.querySelectorAll('#gdSubTabs button').forEach(b=> b.classList.toggle('sel', b.dataset.v==='tasks'));
   document.getElementById('gdTasksPane').style.display = 'block';
   document.getElementById('gdHabitsPane').style.display = 'none';
+  closeHabitAddBox();
   renderGoalDetail();
   blurActive();
   goalDetailOverlay.classList.add('open');
@@ -5475,8 +5504,12 @@ function renderGdHabitList(card, goal){
     const streak = habitStreak(h);
     const total = habitTotalCompletions(h);
     const streakBit = streak > 0 ? `\u{1F525} ${streak} day${streak===1?'':'s'}` : `${total} logged`;
+    const todayKey = todayDateKey();
+    const doneToday = habitDoneOn(h, todayKey);
+    const scheduledToday = habitScheduledOn(h, new Date().getDay());
     return `
     <div class="habitEditRow" data-hid="${h.id}">
+      ${scheduledToday ? `<input type="checkbox" class="habitTodayCheck" ${doneToday?'checked':''} title="Done today">` : `<span style="width:17px; flex:0 0 17px;"></span>`}
       <div class="habitEditRow-main">
         <div class="habitEditRow-text">${escapeHtml(h.text)}</div>
         <div class="habitEditRow-meta">${escapeHtml(habitDaysLabel(h))}${h.time ? ' \u2022 ' + escapeHtml(h.time) : ''} \u2022 ${streakBit}</div>
@@ -5487,6 +5520,28 @@ function renderGdHabitList(card, goal){
   }).join('');
   el.querySelectorAll('.habitEditRow').forEach(row=>{
     const hid = row.dataset.hid;
+    const checkbox = row.querySelector('.habitTodayCheck');
+    if(checkbox){
+      checkbox.addEventListener('change', async (e)=>{
+        const h = goal.habits.find(h=>h.id===hid);
+        if(!h) return;
+        const todayKey = todayDateKey();
+        h.doneDates = h.doneDates || {};
+        const newDone = e.target.checked;
+        if(newDone) h.doneDates[todayKey] = true;
+        else delete h.doneDates[todayKey];
+        awardPointsForHabitToggle(card, newDone);
+        card.updatedAt = Date.now();
+        renderGdHabitList(card, goal);
+        renderRewards();
+        renderLevelPlaque();
+        if(statusOverlay.classList.contains('open')) renderStatusWindow();
+        await saveCards();
+        await saveRewards();
+        await saveLevel();
+        await saveStats();
+      });
+    }
     row.querySelector('.tdel').addEventListener('click', async ()=>{
       goal.habits = goal.habits.filter(h=>h.id!==hid);
       card.updatedAt = Date.now();
@@ -5510,6 +5565,21 @@ document.getElementById('gdHabitDays').addEventListener('click', (e)=>{
   renderGdHabitDayChips();
 });
 
+function closeHabitAddBox(){
+  document.getElementById('gdHabitAddBox').style.display = 'none';
+  document.getElementById('gdHabitAddToggle').style.display = 'block';
+  document.getElementById('gdHabitInput').value = '';
+  document.getElementById('gdHabitTime').value = '';
+  gdHabitSelectedDays = new Set();
+  renderGdHabitDayChips();
+}
+document.getElementById('gdHabitAddToggle').addEventListener('click', ()=>{
+  document.getElementById('gdHabitAddBox').style.display = 'block';
+  document.getElementById('gdHabitAddToggle').style.display = 'none';
+  document.getElementById('gdHabitInput').focus();
+});
+document.getElementById('gdHabitCancelBtn').addEventListener('click', closeHabitAddBox);
+
 document.getElementById('gdHabitAddBtn').addEventListener('click', async ()=>{
   const input = document.getElementById('gdHabitInput');
   const timeInput = document.getElementById('gdHabitTime');
@@ -5527,11 +5597,8 @@ document.getElementById('gdHabitAddBtn').addEventListener('click', async ()=>{
     doneDates: {}
   });
   card.updatedAt = Date.now();
-  input.value = '';
-  timeInput.value = '';
-  gdHabitSelectedDays = new Set();
+  closeHabitAddBox();
   renderGdHabitList(card, goal);
-  renderGdHabitDayChips();
   await saveCards();
 });
 document.getElementById('gdHabitInput').addEventListener('keydown', (e)=>{
