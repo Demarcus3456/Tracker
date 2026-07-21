@@ -129,6 +129,51 @@
   .taskRow .ttext{flex:1; font-size:13.5px;}
   .taskRow .ttext.done{text-decoration:line-through; color:var(--text-dim);}
   .taskRow .tdel{background:none; border:none; color:var(--rose); font-size:16px; cursor:pointer; padding:4px 8px; line-height:1;}
+
+  .dayChipRow{display:flex; gap:5px; margin:8px 0;}
+  .dayChipRow button{
+    flex:1; min-height:32px; border:1.5px solid var(--ink); background:var(--card); border-radius:8px;
+    font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-dim); cursor:pointer;
+  }
+  .dayChipRow button.sel{background:linear-gradient(180deg, #3a4256, var(--ink)); color:var(--paper); border-color:var(--ink);}
+
+  .habitEditRow{display:flex; align-items:center; gap:8px; padding:7px 0 7px 6px; border-bottom:1px solid var(--line);}
+  .habitEditRow-main{flex:1; min-width:0;}
+  .habitEditRow-text{font-size:13.5px;}
+  .habitEditRow-meta{font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); margin-top:2px;}
+  .habitEditRow .tdel{background:none; border:none; color:var(--rose); font-size:16px; cursor:pointer; padding:4px 8px; line-height:1;}
+
+  .calBlock{
+    border:1.5px solid var(--ink); border-radius:16px; background:linear-gradient(180deg, var(--card) 0%, var(--paper) 100%);
+    box-shadow:0 6px 14px rgba(28,30,38,0.08); overflow:hidden;
+  }
+  .calBlock-head{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:12px 14px; border-bottom:1.5px solid var(--line); background:var(--paper-dim);
+  }
+  .calBlock-title{
+    font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:16px; text-transform:uppercase;
+    letter-spacing:0.4px; color:var(--ink);
+  }
+  .calBlock-count{
+    font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-dim);
+    background:var(--card); border:1px solid var(--line); padding:2px 9px; border-radius:10px; flex:0 0 auto;
+  }
+  .calBlock-body{padding:12px 14px;}
+  .calBlock-body .search{margin-bottom:12px;}
+  .calBlock-body .invCatHead:first-child{margin-top:0;}
+
+  .habitRow{display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--line);}
+  .habitRow:last-child{border-bottom:none;}
+  .habitRow input[type=checkbox]{width:19px; height:19px; accent-color:var(--teal); flex:0 0 auto;}
+  .habitRow-main{flex:1; min-width:0;}
+  .habitRow-text{font-size:13.5px; font-weight:600; color:var(--ink);}
+  .habitRow-text.done{text-decoration:line-through; color:var(--text-dim);}
+  .habitRow-meta{font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); margin-top:2px;}
+  .habitRow-time{
+    font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-dim); flex:0 0 auto;
+    background:var(--paper-dim); padding:3px 8px; border-radius:8px;
+  }
   .taskAddRow{display:flex; gap:6px; margin-top:9px;}
   .taskInput{
     flex:1; padding:9px 10px; border:1.5px solid var(--ink); background:var(--card);
@@ -905,11 +950,27 @@
   <div class="topbar">
     <h1>Calendar</h1>
     <div class="tagline" id="calendarTodayLabel">today</div>
-    <div class="search">
-      <input type="text" id="calendarLocationSearch" placeholder="Search by location (e.g. Houston)...">
+  </div>
+  <div class="list">
+    <div class="calBlock" id="calHabitsBlock" style="display:none;">
+      <div class="calBlock-head">
+        <span class="calBlock-title">Today's Habits</span>
+        <span class="calBlock-count" id="calHabitsCount"></span>
+      </div>
+      <div class="calBlock-body" id="calendarHabitsList"></div>
+    </div>
+    <div class="calBlock" id="calPlacesBlock">
+      <div class="calBlock-head">
+        <span class="calBlock-title">Places</span>
+      </div>
+      <div class="calBlock-body">
+        <div class="search">
+          <input type="text" id="calendarLocationSearch" placeholder="Search by location (e.g. Houston)...">
+        </div>
+        <div id="calendarPlacesList"></div>
+      </div>
     </div>
   </div>
-  <div class="list" id="calendarList"></div>
 </div>
 
 <div id="view-buylist" class="view" style="display:none;">
@@ -1246,6 +1307,25 @@
       <div class="mediaBtnRow">
         <input type="text" id="gdTaskInput" placeholder="Add a sub task...">
         <button type="button" class="mediaBtn" id="gdTaskAddBtn">Add</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Habits</label>
+      <div class="tagline" style="margin:-2px 0 8px;">Recurring habits show up on your Calendar tab</div>
+      <div id="gdHabitList"></div>
+      <input type="text" id="gdHabitInput" placeholder="Add a habit...">
+      <div class="dayChipRow" id="gdHabitDays">
+        <button type="button" data-d="0">S</button>
+        <button type="button" data-d="1">M</button>
+        <button type="button" data-d="2">T</button>
+        <button type="button" data-d="3">W</button>
+        <button type="button" data-d="4">T</button>
+        <button type="button" data-d="5">F</button>
+        <button type="button" data-d="6">S</button>
+      </div>
+      <div class="mediaBtnRow">
+        <input type="time" id="gdHabitTime">
+        <button type="button" class="mediaBtn" id="gdHabitAddBtn">Add Habit</button>
       </div>
     </div>
     <div class="sheet-actions">
@@ -1927,6 +2007,7 @@ let newCardColor = SWATCHES[0];
 let currentTab = 'tracker';
 let currentCardId = null;
 let currentGoalId = null;
+let gdHabitSelectedDays = new Set();
 
 let roadmapLevel = 1;
 let roadmapXP = 0;
@@ -2011,6 +2092,26 @@ const savingsGoalsListEl = document.getElementById('savingsGoalsList');
 const fabBtn = document.getElementById('fabAdd');
 
 function uid(prefix){ return (prefix||'i') + Date.now() + Math.random().toString(36).slice(2,7); }
+
+const DAY_LETTERS = ['S','M','T','W','T','F','S'];
+function todayDateKey(d){
+  d = d || new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function habitDaysLabel(habit){
+  const days = (habit.days || []).slice().sort();
+  if(!days.length || days.length === 7) return 'Daily';
+  const set = days.join(',');
+  if(set === '1,2,3,4,5') return 'Weekdays';
+  if(set === '0,6') return 'Weekends';
+  return days.map(d => DAY_LETTERS[d]).join('');
+}
+function habitScheduledOn(habit, dow){
+  return !habit.days || !habit.days.length || habit.days.includes(dow);
+}
+function habitDoneOn(habit, dateKey){
+  return !!(habit.doneDates && habit.doneDates[dateKey]);
+}
 
 function catLabel(id){
   const c = categories.find(c=>c.id===id);
@@ -2149,13 +2250,13 @@ async function loadAll(){
           image: entry.image || null,
           color: entry.color || SWATCHES[0],
           goals: entry.milestones.map(m => ({
-            id: m.id, text: m.text, tasks: m.tasks || []
+            id: m.id, text: m.text, tasks: m.tasks || [], habits: m.habits || []
           })),
           updatedAt: entry.updatedAt || Date.now()
         };
       }
       entry.goals = entry.goals || [];
-      entry.goals.forEach(g=>{ if(!g.tasks) g.tasks = []; });
+      entry.goals.forEach(g=>{ if(!g.tasks) g.tasks = []; if(!g.habits) g.habits = []; });
       if(!entry.color) entry.color = SWATCHES[0];
       if(entry.image === undefined) entry.image = null;
       return entry;
@@ -2444,7 +2545,12 @@ function ingredientHave(ingredientText){
     if(rawText.includes(invName) || invName.includes(rawText)) return true;
     const invWords = invName.split(/[^a-z]+/).filter(Boolean).map(normalizeIngredientWord);
     if(!invWords.length) return false;
-    return invWords.every(iw => textWords.includes(iw));
+    if(invWords.every(iw => textWords.includes(iw))) return true;
+    // Fall back to matching on the core noun (last word) so descriptor words
+    // in the inventory name (e.g. "white" in "White Onions") aren't required
+    // to appear verbatim in the recipe's ingredient text (e.g. "1 onion, chopped").
+    const coreWord = invWords[invWords.length - 1];
+    return coreWord.length > 2 && textWords.includes(coreWord);
   });
 }
 
@@ -3615,10 +3721,78 @@ document.getElementById('placesHomeOverlay').addEventListener('click', (e)=>{
 let calendarSearchTerm = '';
 
 function renderCalendar(){
-  const el = document.getElementById('calendarList');
   const labelEl = document.getElementById('calendarTodayLabel');
   const now = new Date();
   labelEl.textContent = now.toLocaleDateString(undefined, {weekday:'long', month:'long', day:'numeric'}) + ' \u2022 ' + now.toLocaleTimeString(undefined, {hour:'numeric', minute:'2-digit'});
+
+  renderCalendarHabits(now);
+  renderCalendarPlaces(now);
+}
+
+function renderCalendarHabits(now){
+  const block = document.getElementById('calHabitsBlock');
+  const el = document.getElementById('calendarHabitsList');
+  const countEl = document.getElementById('calHabitsCount');
+
+  const anyHabitsExist = cards.some(c=>(c.goals||[]).some(g=>(g.habits||[]).length));
+  if(!anyHabitsExist){
+    block.style.display = 'none';
+    return;
+  }
+  block.style.display = 'block';
+
+  const dow = now.getDay();
+  const dateKey = todayDateKey(now);
+  const entries = [];
+  cards.forEach(card=>{
+    (card.goals||[]).forEach(goal=>{
+      (goal.habits||[]).forEach(habit=>{
+        if(habitScheduledOn(habit, dow)){
+          entries.push({card, goal, habit, done: habitDoneOn(habit, dateKey)});
+        }
+      });
+    });
+  });
+  entries.sort((a,b)=>{
+    const at = a.habit.time || '99:99', bt = b.habit.time || '99:99';
+    if(at !== bt) return at < bt ? -1 : 1;
+    return a.habit.text.localeCompare(b.habit.text);
+  });
+
+  const doneCount = entries.filter(e=>e.done).length;
+  countEl.textContent = `${doneCount}/${entries.length}`;
+
+  if(!entries.length){
+    el.innerHTML = `<div class="tagline" style="margin:0;">No habits scheduled for today.</div>`;
+    return;
+  }
+
+  el.innerHTML = entries.map((e, i)=> `
+    <div class="habitRow" data-i="${i}">
+      <input type="checkbox" ${e.done?'checked':''}>
+      <div class="habitRow-main">
+        <div class="habitRow-text ${e.done?'done':''}">${escapeHtml(e.habit.text)}</div>
+        <div class="habitRow-meta">${escapeHtml(e.card.title)} \u2022 ${escapeHtml(e.goal.text)}</div>
+      </div>
+      ${e.habit.time ? `<span class="habitRow-time">${escapeHtml(e.habit.time)}</span>` : ''}
+    </div>
+  `).join('');
+
+  el.querySelectorAll('.habitRow').forEach(row=>{
+    const entry = entries[Number(row.dataset.i)];
+    row.querySelector('input[type=checkbox]').addEventListener('change', async (e2)=>{
+      entry.habit.doneDates = entry.habit.doneDates || {};
+      if(e2.target.checked) entry.habit.doneDates[dateKey] = true;
+      else delete entry.habit.doneDates[dateKey];
+      entry.card.updatedAt = Date.now();
+      renderCalendarHabits(now);
+      await saveCards();
+    });
+  });
+}
+
+function renderCalendarPlaces(now){
+  const el = document.getElementById('calendarPlacesList');
 
   const buildRow = (place, kind, rightLabel)=>{
     const kindLabel = kind === 'dating' ? 'Dating' : 'Traveling';
@@ -5152,7 +5326,7 @@ document.getElementById('cardGoalAddBtn').addEventListener('click', async ()=>{
   if(!text || !currentCardId) return;
   const card = cards.find(c=>c.id===currentCardId);
   if(!card) return;
-  card.goals.push({id: uid('g'), text, tasks:[]});
+  card.goals.push({id: uid('g'), text, tasks:[], habits:[]});
   card.updatedAt = Date.now();
   input.value = '';
   renderCardGoalsList(card);
@@ -5170,6 +5344,7 @@ cardDetailOverlay.addEventListener('click', (e)=>{ if(e.target === cardDetailOve
 function openGoalDetail(cardId, goalId){
   currentCardId = cardId;
   currentGoalId = goalId;
+  gdHabitSelectedDays = new Set();
   renderGoalDetail();
   blurActive();
   goalDetailOverlay.classList.add('open');
@@ -5228,7 +5403,78 @@ function renderGoalDetail(){
       await saveStats();
     });
   });
+  renderGdHabitList(card, goal);
+  renderGdHabitDayChips();
 }
+
+function renderGdHabitList(card, goal){
+  const el = document.getElementById('gdHabitList');
+  const habits = goal.habits || [];
+  if(!habits.length){
+    el.innerHTML = `<div class="tagline" style="margin:4px 0 10px;">No habits yet — add one below.</div>`;
+    return;
+  }
+  el.innerHTML = habits.map(h => `
+    <div class="habitEditRow" data-hid="${h.id}">
+      <div class="habitEditRow-main">
+        <div class="habitEditRow-text">${escapeHtml(h.text)}</div>
+        <div class="habitEditRow-meta">${escapeHtml(habitDaysLabel(h))}${h.time ? ' \u2022 ' + escapeHtml(h.time) : ''}</div>
+      </div>
+      <button class="tdel">&times;</button>
+    </div>
+  `).join('');
+  el.querySelectorAll('.habitEditRow').forEach(row=>{
+    const hid = row.dataset.hid;
+    row.querySelector('.tdel').addEventListener('click', async ()=>{
+      goal.habits = goal.habits.filter(h=>h.id!==hid);
+      card.updatedAt = Date.now();
+      renderGdHabitList(card, goal);
+      await saveCards();
+    });
+  });
+}
+
+function renderGdHabitDayChips(){
+  document.querySelectorAll('#gdHabitDays button').forEach(btn=>{
+    btn.classList.toggle('sel', gdHabitSelectedDays.has(Number(btn.dataset.d)));
+  });
+}
+document.getElementById('gdHabitDays').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  const d = Number(btn.dataset.d);
+  if(gdHabitSelectedDays.has(d)) gdHabitSelectedDays.delete(d);
+  else gdHabitSelectedDays.add(d);
+  renderGdHabitDayChips();
+});
+
+document.getElementById('gdHabitAddBtn').addEventListener('click', async ()=>{
+  const input = document.getElementById('gdHabitInput');
+  const timeInput = document.getElementById('gdHabitTime');
+  const text = input.value.trim();
+  if(!text) return;
+  const card = cards.find(c=>c.id===currentCardId);
+  if(!card) return;
+  const goal = card.goals.find(g=>g.id===currentGoalId);
+  if(!goal) return;
+  goal.habits = goal.habits || [];
+  goal.habits.push({
+    id: uid('h'), text,
+    days: Array.from(gdHabitSelectedDays).sort(),
+    time: timeInput.value || '',
+    doneDates: {}
+  });
+  card.updatedAt = Date.now();
+  input.value = '';
+  timeInput.value = '';
+  gdHabitSelectedDays = new Set();
+  renderGdHabitList(card, goal);
+  renderGdHabitDayChips();
+  await saveCards();
+});
+document.getElementById('gdHabitInput').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){ e.preventDefault(); document.getElementById('gdHabitAddBtn').click(); }
+});
 
 document.getElementById('gdTitle').addEventListener('change', async (e)=>{
   const card = cards.find(c=>c.id===currentCardId);
