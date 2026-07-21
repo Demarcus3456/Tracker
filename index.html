@@ -611,6 +611,9 @@
   .chip .dot{width:7px; height:7px; border-radius:50%; flex:0 0 auto;}
   .chip.addChip{border-style:dashed; color:var(--text-dim);}
 
+  .filterOptGrid{display:flex; flex-wrap:wrap; gap:8px;}
+  .filterOptGrid .chip{scroll-snap-align:none;}
+
   .stats{
     display:flex; gap:14px; padding:10px 16px 0; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted);
     flex-wrap:wrap;
@@ -830,7 +833,7 @@
     <div class="search">
       <input type="text" id="searchInput" placeholder="Search titles...">
     </div>
-    <div class="filters" id="filters"></div>
+    <button type="button" class="mediaBtn" id="trackerFiltersBtn" style="margin-top:10px;">Filters</button>
   </div>
 
   <div class="stats" id="stats"></div>
@@ -917,6 +920,27 @@
 
 
 
+<div class="sheet-overlay" id="trackerFiltersOverlay">
+  <div class="sheet">
+    <div style="display:flex; align-items:center; justify-content:space-between;">
+      <h2 style="margin:0;">Filters</h2>
+      <button type="button" class="mediaBtn" id="trackerFiltersClearBtn">Clear Filters</button>
+    </div>
+    <div class="sheetDivider"></div>
+    <div class="field">
+      <label>Category</label>
+      <div class="filterOptGrid" id="filterCategoryChips"></div>
+    </div>
+    <div class="field">
+      <label>Status</label>
+      <div class="filterOptGrid" id="filterStatusChips"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-save" id="filterShowResultsBtn" style="flex:1;">Show Results</button>
+    </div>
+  </div>
+</div>
+
 <div class="sheet-overlay" id="overlay">
   <div class="sheet">
     <h2 id="sheetTitle">Add Item</h2>
@@ -936,7 +960,7 @@
     </div>
     <div class="field" id="releaseDateFieldWrap" style="display:none;">
       <label>Release Date</label>
-      <input type="text" id="fReleaseDate" placeholder="e.g. Jan 2027">
+      <input type="date" id="fReleaseDate">
     </div>
     <div class="field" id="episodeFieldWrap" style="display:none;">
       <label>Episode Progress</label>
@@ -944,6 +968,13 @@
         <input type="text" inputmode="numeric" id="fEpCurrent" placeholder="Ep." style="width:70px; flex:0 0 70px; padding:10px 11px; border:1.5px solid var(--line); background:var(--card); border-radius:14px; font-family:'Inter',sans-serif; font-size:16px; color:var(--text); outline:none;">
         <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); text-transform:uppercase;">of</span>
         <input type="text" inputmode="numeric" id="fEpTotal" placeholder="Total" style="width:80px; flex:0 0 80px; padding:10px 11px; border:1.5px solid var(--line); background:var(--card); border-radius:14px; font-family:'Inter',sans-serif; font-size:16px; color:var(--text); outline:none;">
+      </div>
+    </div>
+    <div class="field" id="gamePercentFieldWrap" style="display:none;">
+      <label>Completion</label>
+      <div class="mediaBtnRow" style="margin-top:0; align-items:center;">
+        <input type="range" id="fGamePercent" min="0" max="100" step="1" value="0" style="flex:1;">
+        <span id="fGamePercentLabel" style="font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--text); width:42px; text-align:right;">0%</span>
       </div>
     </div>
     <div class="sheetDivider"></div>
@@ -1803,6 +1834,7 @@ const storageAdapter = {
 let items = [];
 let categories = [];
 let activeFilter = 'all';
+let activeSubFilter = 'all';
 let searchTerm = '';
 let editingId = null;
 let draft = {category:null, status:'coming_soon', image:null, mediaUrl:''};
@@ -1903,6 +1935,27 @@ function catLabel(id){
   const c = categories.find(c=>c.id===id);
   return c ? c.label : 'Other';
 }
+function formatReleaseDate(val){
+  if(!val) return '';
+  const d = new Date(val + 'T00:00:00');
+  if(isNaN(d.getTime())) return val; // legacy free-text value from before this was a real date
+  return d.toLocaleDateString(undefined, {month:'short', day:'numeric', year:'numeric'});
+}
+
+function checkComingSoonReleases(){
+  const todayStr = new Date().toISOString().slice(0,10);
+  let changed = false;
+  items.forEach(i=>{
+    if(i.status === 'coming_soon' && i.releaseDate && /^\d{4}-\d{2}-\d{2}$/.test(i.releaseDate)){
+      if(i.releaseDate <= todayStr){
+        i.status = '';
+        changed = true;
+      }
+    }
+  });
+  return changed;
+}
+
 function catColor(id){
   const c = categories.find(c=>c.id===id);
   return c ? c.color : '#8a8474';
@@ -1995,6 +2048,7 @@ async function loadAll(){
   try{
     const res2 = await storageAdapter.get('shelf_items');
     items = res2 && res2.value ? JSON.parse(res2.value) : [];
+    if(checkComingSoonReleases()) saveItems();
   }catch(e){
     items = [];
   }
@@ -3173,14 +3227,18 @@ function openPlaceDetail(id){
       videoEl.innerHTML = `<video src="${escapeAttr(p.videoUrl)}" muted playsinline preload="metadata"></video><div class="videoPlayBadge"></div>`;
       videoEl.onclick = openVideoFullscreen;
     }else if(isFacebookUrl(p.videoUrl)){
-      videoEl.innerHTML = `
-        <div class="videoFbPoster">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.4h-1.2c-1.2 0-1.6.8-1.6 1.6V12h2.8l-.4 2.9h-2.4v7A10 10 0 0 0 22 12z"/></svg>
-          <div class="videoPlayBadge"></div>
-        </div>`;
+      if(p.image){
+        videoEl.innerHTML = `<img src="${p.image}" alt=""><div class="videoPlayBadge"></div>`;
+      }else{
+        videoEl.innerHTML = `
+          <div class="videoFbPoster">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.4h-1.2c-1.2 0-1.6.8-1.6 1.6V12h2.8l-.4 2.9h-2.4v7A10 10 0 0 0 22 12z"/></svg>
+            <div class="videoPlayBadge"></div>
+          </div>`;
+      }
       videoEl.onclick = openVideoFullscreen;
       currentVideoEmbedHtml = `<iframe src="https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(p.videoUrl)}&show_text=false&autoplay=true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" allowfullscreen></iframe>`;
-      videoFallback.innerHTML = `If it doesn't play, <a href="${escapeAttr(p.videoUrl)}" target="_blank" rel="noopener" style="color:var(--teal);">open it on Facebook</a> instead. Tip: use "Copy Link" from the post's menu rather than "Share" for the best chance of it working.`;
+      videoFallback.innerHTML = `<a href="${escapeAttr(p.videoUrl)}" target="_blank" rel="noopener" style="color:var(--teal);">Open on Facebook</a>`;
       videoFallback.style.display = 'block';
     }else{
       videoEl.innerHTML = `<div style="padding:16px; color:#fff; font-size:13px;">Can't preview this link directly — <a href="${escapeAttr(p.videoUrl)}" target="_blank" rel="noopener" style="color:var(--teal);">open it here</a>.</div>`;
@@ -3523,34 +3581,124 @@ async function saveSavings(){
   if(fbUser) pushAllToCloud();
 }
 
-function buildFilters(){
-  let html = `<button class="chip ${activeFilter==='all'?'active':''}" data-c="all">All</button>`;
+let filterDraft = {category:'all', sub:'all'};
+
+function openTrackerFilters(){
+  filterDraft = {category: activeFilter, sub: activeSubFilter};
+  renderFilterCategoryChips();
+  renderFilterStatusChips();
+  blurActive();
+  document.getElementById('trackerFiltersOverlay').classList.add('open');
+}
+document.getElementById('trackerFiltersBtn').addEventListener('click', openTrackerFilters);
+
+function renderFilterCategoryChips(){
+  const el = document.getElementById('filterCategoryChips');
+  let html = `<button class="chip ${filterDraft.category==='all'?'active':''}" data-c="all">All</button>`;
   html += categories.map(c => `
-    <button class="chip ${activeFilter===c.id?'active':''}" data-c="${c.id}">
+    <button class="chip ${filterDraft.category===c.id?'active':''}" data-c="${c.id}">
       <span class="dot" style="background:${c.color}"></span>${escapeHtml(c.label)}
     </button>`).join('');
   html += `<button class="chip addChip" id="chipAddTab">+ Tab</button>`;
-  filtersEl.innerHTML = html;
-  filtersEl.querySelectorAll('.chip[data-c]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{ activeFilter = btn.dataset.c; render(); });
+  el.innerHTML = html;
+  el.querySelectorAll('.chip[data-c]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      filterDraft.category = btn.dataset.c;
+      filterDraft.sub = 'all';
+      renderFilterCategoryChips();
+      renderFilterStatusChips();
+    });
   });
   document.getElementById('chipAddTab').addEventListener('click', openTagManager);
 }
 
+function renderFilterStatusChips(){
+  const el = document.getElementById('filterStatusChips');
+  const opts = [{id:'all', label:'All'}, {id:'coming_soon', label:'Coming Soon'}];
+  if(filterDraft.category === 'anime'){
+    opts.push({id:'in_progress', label:'Watching'}, {id:'completed', label:'Completed'});
+  }else if(filterDraft.category === 'game'){
+    opts.push({id:'in_progress', label:'Playing'}, {id:'completed', label:'Completed'});
+  }
+  el.innerHTML = opts.map(o=>`<button class="chip ${filterDraft.sub===o.id?'active':''}" data-s="${o.id}">${o.label}</button>`).join('');
+  el.querySelectorAll('.chip[data-s]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      filterDraft.sub = btn.dataset.s;
+      renderFilterStatusChips();
+    });
+  });
+}
+
+document.getElementById('trackerFiltersClearBtn').addEventListener('click', ()=>{
+  filterDraft = {category:'all', sub:'all'};
+  renderFilterCategoryChips();
+  renderFilterStatusChips();
+});
+
+document.getElementById('filterShowResultsBtn').addEventListener('click', ()=>{
+  activeFilter = filterDraft.category;
+  activeSubFilter = filterDraft.sub;
+  document.getElementById('trackerFiltersOverlay').classList.remove('open');
+  render();
+});
+document.getElementById('trackerFiltersOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'trackerFiltersOverlay') e.currentTarget.classList.remove('open');
+});
+
+function updateFiltersButtonLabel(){
+  const n = (activeFilter !== 'all' ? 1 : 0) + (activeSubFilter !== 'all' ? 1 : 0);
+  document.getElementById('trackerFiltersBtn').textContent = n > 0 ? `Filters (${n})` : 'Filters';
+}
+
+function itemMatchesSubFilter(i){
+  if(activeSubFilter === 'all') return true;
+  if(activeSubFilter === 'coming_soon') return i.status === 'coming_soon';
+  if(activeSubFilter === 'in_progress'){
+    if(i.category === 'anime'){
+      const total = Number(i.epTotal) || 0, cur = Number(i.epCurrent) || 0;
+      return cur > 0 && (total === 0 || cur < total);
+    }
+    if(i.category === 'game'){
+      const pct = Number(i.gamePercent) || 0;
+      return pct > 0 && pct < 100;
+    }
+  }
+  if(activeSubFilter === 'completed'){
+    if(i.category === 'anime'){
+      const total = Number(i.epTotal) || 0, cur = Number(i.epCurrent) || 0;
+      return total > 0 && cur >= total;
+    }
+    if(i.category === 'game'){
+      return (Number(i.gamePercent) || 0) >= 100;
+    }
+  }
+  return true;
+}
+
 function render(){
-  buildFilters();
+  updateFiltersButtonLabel();
+  if(checkComingSoonReleases()) saveItems();
 
   const counts = {};
   categories.forEach(c=>counts[c.id]=0);
   items.forEach(i=>counts[i.category]=(counts[i.category]||0)+1);
   statsEl.innerHTML = categories.map(c=>`${escapeHtml(c.label)} ${counts[c.id]||0}`).join(' &nbsp;·&nbsp; ');
 
-  let filtered = items.filter(i => activeFilter==='all' || i.category===activeFilter);
+  let filtered = items.filter(i=>{
+    if(activeFilter === 'all') return itemMatchesSubFilter(i);
+    if(activeFilter === 'coming_soon') return i.status === 'coming_soon';
+    return i.category === activeFilter && itemMatchesSubFilter(i);
+  });
   if(searchTerm.trim()){
     const t = searchTerm.trim().toLowerCase();
     filtered = filtered.filter(i => i.title.toLowerCase().includes(t));
   }
-  filtered.sort((a,b)=> b.updatedAt - a.updatedAt);
+  filtered.sort((a,b)=>{
+    const aCS = a.status === 'coming_soon' ? 1 : 0;
+    const bCS = b.status === 'coming_soon' ? 1 : 0;
+    if(aCS !== bCS) return aCS - bCS;
+    return b.updatedAt - a.updatedAt;
+  });
 
   if(filtered.length === 0){
     listEl.innerHTML = `<div class="empty"><div class="big">Nothing here yet</div>Tap + to log something you're watching, playing, or listening to.</div>`;
@@ -3561,6 +3709,7 @@ function render(){
     const epTotal = Number(i.epTotal) || 0;
     const epCurrent = Number(i.epCurrent) || 0;
     const epPct = epTotal > 0 ? Math.min(100, Math.round((epCurrent/epTotal)*100)) : 0;
+    const gamePct = i.category === 'game' ? Math.max(0, Math.min(100, Number(i.gamePercent) || 0)) : 0;
     return `
     <div class="card ${thumbHasMedia(i) ? '' : 'hasSpine'}" data-id="${i.id}" style="border-left-color:${catColor(i.category)}">
       <div class="card-thumb ${thumbIsVideo(i) ? 'videoThumb' : ''}" style="background:${thumbHasMedia(i) ? 'var(--paper-dim)' : `linear-gradient(150deg, ${catColor(i.category)}, ${catColor(i.category)}cc)`}" data-media-url="${escapeAttr(i.mediaUrl||'')}">${buildThumbHtml(i)}</div>
@@ -3573,11 +3722,17 @@ function render(){
           ${i.status ? `<div class="stamp ${STATUS_CLASS[i.status] || ''}">${STATUS_LABEL[i.status] || escapeHtml(i.status)}</div>` : ''}
         </div>
         ${i.notes ? `<div class="card-notes">${escapeHtml(i.notes)}</div>` : ''}
-        ${(i.status === 'coming_soon' && i.releaseDate) ? `<div class="card-notes" style="color:var(--amber); font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase;">Releases ${escapeHtml(i.releaseDate)}</div>` : ''}
+        ${(i.status === 'coming_soon' && i.releaseDate) ? `<div class="card-notes" style="color:var(--amber); font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase;">Releases ${escapeHtml(formatReleaseDate(i.releaseDate))}</div>` : ''}
         ${epTotal > 0 ? `
           <div class="card-bottom">
             <div class="progressbar" style="flex:1;"><div class="progressbar-fill" style="width:${epPct}%"></div></div>
             <span class="card-meta" style="margin:0 0 0 10px; white-space:nowrap;">Ep ${epCurrent}/${epTotal}</span>
+          </div>
+        ` : ''}
+        ${gamePct > 0 ? `
+          <div class="card-bottom">
+            <div class="progressbar" style="flex:1;"><div class="progressbar-fill" style="width:${gamePct}%"></div></div>
+            <span class="card-meta" style="margin:0 0 0 10px; white-space:nowrap;">${gamePct}%</span>
           </div>
         ` : ''}
       </div>
@@ -5278,7 +5433,7 @@ function renderCategoryPicker(){
     </button>
   `).join('') + `<button type="button" class="newTagBtn" id="fNewTagBtn">+ New Tab</button>`;
   el.querySelectorAll('button[data-v]').forEach(b=>{
-    b.addEventListener('click', ()=>{ draft.category = b.dataset.v; renderCategoryPicker(); updateEpisodeFieldVisibility(); });
+    b.addEventListener('click', ()=>{ draft.category = b.dataset.v; renderCategoryPicker(); updateEpisodeFieldVisibility(); updateGamePercentVisibility(); });
   });
   document.getElementById('fNewTagBtn').addEventListener('click', ()=> openTagManager(true));
 }
@@ -5287,6 +5442,14 @@ function updateEpisodeFieldVisibility(){
   const wrap = document.getElementById('episodeFieldWrap');
   if(wrap) wrap.style.display = (draft.category === 'anime') ? 'block' : 'none';
 }
+
+function updateGamePercentVisibility(){
+  const wrap = document.getElementById('gamePercentFieldWrap');
+  if(wrap) wrap.style.display = (draft.category === 'game') ? 'block' : 'none';
+}
+document.getElementById('fGamePercent').addEventListener('input', (e)=>{
+  document.getElementById('fGamePercentLabel').textContent = e.target.value + '%';
+});
 
 function updateReleaseDateVisibility(){
   const wrap = document.getElementById('releaseDateFieldWrap');
@@ -5302,6 +5465,8 @@ function openAdd(){
   document.getElementById('fMediaUrl').value = '';
   document.getElementById('fEpCurrent').value = '';
   document.getElementById('fEpTotal').value = '';
+  document.getElementById('fGamePercent').value = 0;
+  document.getElementById('fGamePercentLabel').textContent = '0%';
   document.getElementById('fReleaseDate').value = '';
   document.getElementById('deleteRow').style.display = 'none';
   syncFormUI();
@@ -5320,6 +5485,8 @@ function openEdit(id){
   document.getElementById('fMediaUrl').value = item.mediaUrl || '';
   document.getElementById('fEpCurrent').value = item.epCurrent || '';
   document.getElementById('fEpTotal').value = item.epTotal || '';
+  document.getElementById('fGamePercent').value = item.gamePercent || 0;
+  document.getElementById('fGamePercentLabel').textContent = (item.gamePercent || 0) + '%';
   document.getElementById('fReleaseDate').value = item.releaseDate || '';
   document.getElementById('deleteRow').style.display = 'flex';
   syncFormUI();
@@ -5331,6 +5498,7 @@ function syncFormUI(){
   renderCategoryPicker();
   document.getElementById('fComingSoonBtn').classList.toggle('sel', draft.status === 'coming_soon');
   updateEpisodeFieldVisibility();
+  updateGamePercentVisibility();
   updateReleaseDateVisibility();
   renderImagePreview();
   renderMediaUrlPreview();
@@ -5411,6 +5579,7 @@ document.getElementById('btnSave').addEventListener('click', async ()=>{
   const epTotalRaw = parseInt(document.getElementById('fEpTotal').value, 10);
   const epCurrent = (draft.category === 'anime' && !isNaN(epCurrentRaw)) ? Math.max(0, epCurrentRaw) : 0;
   const epTotal = (draft.category === 'anime' && !isNaN(epTotalRaw)) ? Math.max(0, epTotalRaw) : 0;
+  const gamePercent = (draft.category === 'game') ? Math.max(0, Math.min(100, parseInt(document.getElementById('fGamePercent').value, 10) || 0)) : 0;
   const releaseDate = (draft.status === 'coming_soon') ? document.getElementById('fReleaseDate').value.trim() : '';
 
   if(editingId){
@@ -5421,6 +5590,7 @@ document.getElementById('btnSave').addEventListener('click', async ()=>{
     item.status = draft.status;
     item.epCurrent = epCurrent;
     item.epTotal = epTotal;
+    item.gamePercent = gamePercent;
     item.releaseDate = releaseDate;
     item.image = draft.image || null;
     item.mediaUrl = draft.mediaUrl || '';
@@ -5432,6 +5602,7 @@ document.getElementById('btnSave').addEventListener('click', async ()=>{
       category: draft.category,
       status: draft.status,
       epCurrent, epTotal,
+      gamePercent,
       releaseDate,
       image: draft.image || null,
       mediaUrl: draft.mediaUrl || '',
@@ -5483,7 +5654,7 @@ document.getElementById('tagCustomColor').addEventListener('input', (e)=>{
   });
 });
 
-const LOCKED_CATEGORY_IDS = ['anime', 'game'];
+const LOCKED_CATEGORY_IDS = ['anime', 'game', 'movie'];
 
 function renderTagManageList(){
   const el = document.getElementById('tagManageList');
