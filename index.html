@@ -750,6 +750,7 @@
     cursor:pointer; transition:transform 0.12s ease;
   }
   .fab:active{transform:scale(0.92);}
+  .habitFab{z-index:45;}
 
   .sheet-overlay{
     position:fixed; inset:0; background:rgba(28,30,38,0.5); z-index:40;
@@ -992,6 +993,7 @@
 </div>
 
 <button class="fab" id="fabAdd">+</button>
+<button class="fab habitFab" id="gdHabitFab" style="display:none;">+</button>
 
 <nav class="bottomnav" id="bottomNav">
   <button class="navBtn active" data-tab="tracker">
@@ -1324,7 +1326,6 @@
     <div class="field" id="gdHabitsPane" style="display:none;">
       <div class="tagline" style="margin:-2px 0 8px;">Recurring habits show up on your Calendar tab</div>
       <div id="gdHabitList"></div>
-      <button type="button" class="mediaBtn" id="gdHabitAddToggle" style="width:100%; margin-top:6px;">+ Add Habit</button>
     </div>
     <div class="sheet-actions">
       <button class="btn-cancel" id="gdBtnClose">Close</button>
@@ -5427,6 +5428,7 @@ function openGoalDetail(cardId, goalId){
   document.querySelectorAll('#gdSubTabs button').forEach(b=> b.classList.toggle('sel', b.dataset.v==='tasks'));
   document.getElementById('gdTasksPane').style.display = 'block';
   document.getElementById('gdHabitsPane').style.display = 'none';
+  document.getElementById('gdHabitFab').style.display = 'none';
   renderGoalDetail();
   blurActive();
   goalDetailOverlay.classList.add('open');
@@ -5435,8 +5437,10 @@ document.getElementById('gdSubTabs').addEventListener('click', (e)=>{
   const btn = e.target.closest('button');
   if(!btn) return;
   document.querySelectorAll('#gdSubTabs button').forEach(b=> b.classList.toggle('sel', b===btn));
-  document.getElementById('gdTasksPane').style.display = btn.dataset.v === 'tasks' ? 'block' : 'none';
-  document.getElementById('gdHabitsPane').style.display = btn.dataset.v === 'habits' ? 'block' : 'none';
+  const onHabits = btn.dataset.v === 'habits';
+  document.getElementById('gdTasksPane').style.display = onHabits ? 'none' : 'block';
+  document.getElementById('gdHabitsPane').style.display = onHabits ? 'block' : 'none';
+  document.getElementById('gdHabitFab').style.display = onHabits ? 'flex' : 'none';
 });
 
 function renderGoalDetail(){
@@ -5500,7 +5504,7 @@ function renderGdHabitList(card, goal){
   const el = document.getElementById('gdHabitList');
   const habits = goal.habits || [];
   if(!habits.length){
-    el.innerHTML = `<div class="tagline" style="margin:4px 0 10px;">No habits yet — add one below.</div>`;
+    el.innerHTML = `<div class="tagline" style="margin:4px 0 10px;">No habits yet — tap the + button to add one.</div>`;
     return;
   }
   el.innerHTML = habits.map(h => {
@@ -5569,6 +5573,7 @@ document.getElementById('gdHabitDays').addEventListener('click', (e)=>{
 });
 
 const habitAddOverlay = document.getElementById('habitAddOverlay');
+const gdHabitFab = document.getElementById('gdHabitFab');
 
 function openHabitAdd(){
   gdHabitSelectedDays = new Set();
@@ -5576,13 +5581,17 @@ function openHabitAdd(){
   document.getElementById('gdHabitTime').value = '';
   renderGdHabitDayChips();
   blurActive();
+  gdHabitFab.style.display = 'none';
   habitAddOverlay.classList.add('open');
   document.getElementById('gdHabitInput').focus();
 }
 function closeHabitAdd(){
   habitAddOverlay.classList.remove('open');
+  if(goalDetailOverlay.classList.contains('open') && document.getElementById('gdHabitsPane').style.display !== 'none'){
+    gdHabitFab.style.display = 'flex';
+  }
 }
-document.getElementById('gdHabitAddToggle').addEventListener('click', openHabitAdd);
+gdHabitFab.addEventListener('click', openHabitAdd);
 habitAddOverlay.addEventListener('click', (e)=>{ if(e.target === habitAddOverlay) closeHabitAdd(); });
 document.getElementById('gdHabitCancelBtn').addEventListener('click', closeHabitAdd);
 
@@ -5646,15 +5655,19 @@ document.getElementById('gdTaskInput').addEventListener('keydown', (e)=>{
   if(e.key === 'Enter'){ e.preventDefault(); document.getElementById('gdTaskAddBtn').click(); }
 });
 
-document.getElementById('gdBtnClose').addEventListener('click', ()=> goalDetailOverlay.classList.remove('open'));
-goalDetailOverlay.addEventListener('click', (e)=>{ if(e.target === goalDetailOverlay) goalDetailOverlay.classList.remove('open'); });
+function closeGoalDetail(){
+  goalDetailOverlay.classList.remove('open');
+  document.getElementById('gdHabitFab').style.display = 'none';
+}
+document.getElementById('gdBtnClose').addEventListener('click', closeGoalDetail);
+goalDetailOverlay.addEventListener('click', (e)=>{ if(e.target === goalDetailOverlay) closeGoalDetail(); });
 
 document.getElementById('gdBtnDelete').addEventListener('click', async ()=>{
   const card = cards.find(c=>c.id===currentCardId);
   if(!card) return;
   card.goals = card.goals.filter(g=>g.id!==currentGoalId);
   card.updatedAt = Date.now();
-  goalDetailOverlay.classList.remove('open');
+  closeGoalDetail();
   renderCardGoalsList(card);
   renderGoals();
   await saveCards();
