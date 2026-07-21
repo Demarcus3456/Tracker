@@ -991,6 +991,13 @@
     <div class="tagline" id="calendarTodayLabel">today</div>
   </div>
   <div class="list">
+    <div class="calBlock" id="calExpiringBlock" style="display:none;">
+      <div class="calBlock-head">
+        <span class="calBlock-title">Expiring Today</span>
+        <span class="calBlock-count" id="calExpiringCount"></span>
+      </div>
+      <div class="calBlock-body" id="calendarExpiringList"></div>
+    </div>
     <div class="calBlock" id="calHabitsBlock" style="display:none;">
       <div class="calBlock-head">
         <span class="calBlock-title">Today's Habits</span>
@@ -1702,19 +1709,25 @@
     <h2>Recipes</h2>
     <div class="seg" id="recipesSubTabs">
       <button type="button" data-v="recipes" class="sel">Recipes</button>
+      <button type="button" data-v="groceries">Groceries List</button>
       <button type="button" data-v="inventory">Inventory</button>
     </div>
-    <div id="recipesInventoryView" style="margin-top:18px;">
-      <div id="inventoryList" style="margin-top:4px;"></div>
-    </div>
-    <div id="recipesListView" style="display:none; margin-top:18px;">
+    <div id="recipesListView" style="margin-top:18px;">
       <div id="recipesListEl" style="margin-top:4px;"></div>
+    </div>
+    <div id="recipesGroceriesView" style="display:none; margin-top:18px;">
+      <div class="tagline" style="margin:-4px 0 10px;">Tap an item once you've picked it up to move it into Inventory</div>
+      <div id="groceriesListEl" style="margin-top:4px;"></div>
+    </div>
+    <div id="recipesInventoryView" style="display:none; margin-top:18px;">
+      <div id="inventoryList" style="margin-top:4px;"></div>
     </div>
     <div class="sheet-actions">
       <button class="btn-cancel" id="recipesHomeClose">Close</button>
     </div>
-    <button type="button" class="fab" id="invAddBtn">+</button>
-    <button type="button" class="fab" id="recipeAddBtn" style="display:none;">+</button>
+    <button type="button" class="fab" id="recipeAddBtn">+</button>
+    <button type="button" class="fab" id="groceryAddBtn" style="display:none;">+</button>
+    <button type="button" class="fab" id="invAddBtn" style="display:none;">+</button>
   </div>
 </div>
 
@@ -1726,12 +1739,25 @@
       <input type="text" id="invItemName" placeholder="e.g. Chicken thighs, Cumin, Olive oil">
     </div>
     <div class="field">
+      <label>Image (optional)</label>
+      <div id="invItemImgPreviewWrap"></div>
+      <input type="file" id="invItemImageInput" accept="image/*" style="display:none">
+      <div class="mediaBtnRow">
+        <button type="button" class="mediaBtn" id="invItemImageBtn">Choose Image</button>
+        <button type="button" class="mediaBtn removeBtn" id="invItemImageRemoveBtn" style="display:none;">Remove</button>
+      </div>
+    </div>
+    <div class="field">
       <label>Category</label>
       <div class="seg" id="invItemCategoryPicker"></div>
     </div>
     <div class="field">
       <label>Amount (optional)</label>
       <input type="text" id="invItemAmount" placeholder="e.g. 2 lbs, 1 jar">
+    </div>
+    <div class="field">
+      <label>Expiration Date (optional)</label>
+      <input type="date" id="invItemExpDate">
     </div>
     <div class="sheet-actions">
       <button class="btn-cancel" id="invItemCancel">Cancel</button>
@@ -1759,6 +1785,40 @@
     </div>
     <div id="ingLinkList" style="margin-bottom:10px;"></div>
     <button type="button" class="mediaBtn" id="ingLinkAddNewBtn" style="width:100%;">+ Add New Inventory Item</button>
+  </div>
+</div>
+
+<div class="sheet-overlay" id="groceryOverlay">
+  <div class="sheet">
+    <button class="sheetClose" id="gySheetCloseBtn">&times;</button>
+    <h2 id="grocerySheetTitle">Add Grocery Item</h2>
+    <div class="field">
+      <label>Name</label>
+      <input type="text" id="groceryName" placeholder="e.g. White onions">
+    </div>
+    <div class="field">
+      <label>Image (optional)</label>
+      <div id="groceryImgPreviewWrap"></div>
+      <input type="file" id="groceryImageInput" accept="image/*" style="display:none">
+      <div class="mediaBtnRow">
+        <button type="button" class="mediaBtn" id="groceryImageBtn">Choose Image</button>
+        <button type="button" class="mediaBtn removeBtn" id="groceryImageRemoveBtn" style="display:none;">Remove</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Category</label>
+      <div class="seg" id="groceryCategoryPicker"></div>
+    </div>
+    <div class="field">
+      <label>Amount (optional)</label>
+      <input type="text" id="groceryAmount" placeholder="e.g. 2 lbs, 1 jar">
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-save" id="grocerySave">Add Item</button>
+    </div>
+    <div class="sheet-actions" id="groceryDeleteRow" style="display:none;">
+      <button class="btn-delete" id="groceryDelete">Delete Item</button>
+    </div>
   </div>
 </div>
 
@@ -2034,6 +2094,7 @@ async function pushAllToCloud(){
       buylistCategories,
       infoCategories,
       inventory: recipeInventory,
+      groceries: groceryItems,
       recipes,
       datingPlaces,
       travelPlaces,
@@ -2063,6 +2124,7 @@ async function pullFromCloud(){
       if(data.buylistCategories) buylistCategories = data.buylistCategories;
       if(data.infoCategories) infoCategories = data.infoCategories;
       if(data.inventory) recipeInventory = data.inventory;
+      if(data.groceries) groceryItems = data.groceries;
       if(data.recipes) recipes = data.recipes;
       if(data.datingPlaces) datingPlaces = data.datingPlaces;
       if(data.travelPlaces) travelPlaces = data.travelPlaces;
@@ -2072,7 +2134,7 @@ async function pullFromCloud(){
         roadmapXP = data.level.xp || 0;
       }
       if(data.stats && data.stats.length) roadmapStats = data.stats;
-      await saveItems(); await saveCategories(); await saveCards(); await saveRewards(); await saveBuylist(); await saveBuylistCats(); await saveInfoCats(); await saveInventory(); await saveRecipes(); await saveDatingPlaces(); await saveTravelPlaces(); await saveSavings(); await saveLevel(); await saveStats();
+      await saveItems(); await saveCategories(); await saveCards(); await saveRewards(); await saveBuylist(); await saveBuylistCats(); await saveInfoCats(); await saveInventory(); await saveGroceries(); await saveRecipes(); await saveDatingPlaces(); await saveTravelPlaces(); await saveSavings(); await saveLevel(); await saveStats();
       render(); renderGoals(); renderLevelPlaque(); renderRewards(); renderBuylist(); renderSavings(); renderInfoGrid();
     }else{
       await pushAllToCloud();
@@ -2174,8 +2236,11 @@ let infoCatDraft = {name:'', color: SWATCHES[0], icon:''};
 
 const INV_CATEGORIES = ['Seasonings','Meats','Pantry','Produce','Dairy','Other'];
 let recipeInventory = [];
+let groceryItems = [];
 let editingInvItemId = null;
-let invItemDraft = {name:'', category:'Pantry', amount:''};
+let invItemDraft = {name:'', category:'Pantry', amount:'', image:null};
+let editingGroceryId = null;
+let groceryDraft = {name:'', category:'Pantry', amount:'', image:null};
 let pendingIngredientLink = null;
 let linkingIngredientId = null;
 
@@ -2326,6 +2391,7 @@ function exportAllData(){
     buylistCategories,
     infoCategories,
     inventory: recipeInventory,
+    groceries: groceryItems,
     recipes,
     datingPlaces,
     travelPlaces,
@@ -2397,6 +2463,7 @@ document.getElementById('importFileInput').addEventListener('change', async (e)=
     if(data.buylistCategories) buylistCategories = data.buylistCategories;
     if(data.infoCategories) infoCategories = data.infoCategories;
     if(data.inventory) recipeInventory = data.inventory;
+    if(data.groceries) groceryItems = data.groceries;
     if(data.recipes) recipes = data.recipes;
     if(data.datingPlaces) datingPlaces = data.datingPlaces;
     if(data.travelPlaces) travelPlaces = data.travelPlaces;
@@ -2409,7 +2476,7 @@ document.getElementById('importFileInput').addEventListener('change', async (e)=
 
     await saveItems(); await saveCategories(); await saveCards(); await saveRewards();
     await saveBuylist(); await saveBuylistCats(); await saveInfoCats();
-    await saveInventory(); await saveRecipes(); await saveDatingPlaces(); await saveTravelPlaces();
+    await saveInventory(); await saveGroceries(); await saveRecipes(); await saveDatingPlaces(); await saveTravelPlaces();
     await saveSavings(); await saveLevel(); await saveStats();
 
     render(); renderGoals(); renderLevelPlaque(); renderRewards(); renderBuylist(); renderSavings(); renderInfoGrid();
@@ -2494,8 +2561,15 @@ async function loadAll(){
   try{
     const res5d = await storageAdapter.get('tracker_inventory');
     recipeInventory = res5d && res5d.value ? JSON.parse(res5d.value) : [];
+    recipeInventory.forEach(it=>{ if(it.expDate === undefined) it.expDate = ''; });
   }catch(e){
     recipeInventory = [];
+  }
+  try{
+    const res5d2 = await storageAdapter.get('tracker_groceries');
+    groceryItems = res5d2 && res5d2.value ? JSON.parse(res5d2.value) : [];
+  }catch(e){
+    groceryItems = [];
   }
   try{
     const res5e = await storageAdapter.get('tracker_recipes');
@@ -2662,6 +2736,14 @@ async function saveInventory(){
   }
   if(fbUser) pushAllToCloud();
 }
+async function saveGroceries(){
+  try{
+    await storageAdapter.set('tracker_groceries', JSON.stringify(groceryItems));
+  }catch(e){
+    console.error('Save failed', e);
+  }
+  if(fbUser) pushAllToCloud();
+}
 async function saveRecipes(){
   try{
     await storageAdapter.set('tracker_recipes', JSON.stringify(recipes));
@@ -2769,10 +2851,13 @@ function openRecipesHome(){
     b.classList.toggle('sel', b.dataset.v === 'recipes');
   });
   document.getElementById('recipesInventoryView').style.display = 'none';
+  document.getElementById('recipesGroceriesView').style.display = 'none';
   document.getElementById('recipesListView').style.display = 'block';
   document.getElementById('invAddBtn').style.display = 'none';
+  document.getElementById('groceryAddBtn').style.display = 'none';
   document.getElementById('recipeAddBtn').style.display = 'flex';
   renderInventoryList();
+  renderGroceriesList();
   renderRecipesList();
   blurActive();
   document.getElementById('recipesHomeOverlay').classList.add('open');
@@ -2789,9 +2874,12 @@ document.getElementById('recipesSubTabs').addEventListener('click', (e)=>{
   recipesSubTab = btn.dataset.v;
   document.querySelectorAll('#recipesSubTabs button').forEach(b=>b.classList.toggle('sel', b===btn));
   document.getElementById('recipesInventoryView').style.display = recipesSubTab === 'inventory' ? 'block' : 'none';
+  document.getElementById('recipesGroceriesView').style.display = recipesSubTab === 'groceries' ? 'block' : 'none';
   document.getElementById('recipesListView').style.display = recipesSubTab === 'recipes' ? 'block' : 'none';
   document.getElementById('invAddBtn').style.display = recipesSubTab === 'inventory' ? 'flex' : 'none';
+  document.getElementById('groceryAddBtn').style.display = recipesSubTab === 'groceries' ? 'flex' : 'none';
   document.getElementById('recipeAddBtn').style.display = recipesSubTab === 'recipes' ? 'flex' : 'none';
+  if(recipesSubTab === 'groceries') renderGroceriesList();
 });
 
 // -- Inventory --
@@ -2802,16 +2890,33 @@ function renderInventoryList(){
     return;
   }
   let html = '';
+  const todayKey = todayDateKey();
   INV_CATEGORIES.forEach(cat=>{
     const itemsInCat = recipeInventory.filter(it=>it.category===cat);
     if(!itemsInCat.length) return;
     html += `<div class="invCatHead">${escapeHtml(cat)}</div>`;
-    html += itemsInCat.map(it => `
+    html += itemsInCat.map(it => {
+      let expBit = '';
+      if(it.expDate){
+        const daysLeft = Math.round((new Date(it.expDate + 'T00:00:00') - new Date(todayKey + 'T00:00:00')) / 86400000);
+        let color = 'var(--text-dim)';
+        let label = `Exp ${escapeHtml(it.expDate)}`;
+        if(daysLeft < 0){ color = 'var(--rose)'; label = 'Expired'; }
+        else if(daysLeft === 0){ color = 'var(--rose)'; label = 'Expires today'; }
+        else if(daysLeft <= 3){ color = 'var(--amber)'; label = `Expires in ${daysLeft}d`; }
+        expBit = `<div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:${color}; margin-top:2px;">${label}</div>`;
+      }
+      return `
       <div class="invRow" data-id="${it.id}">
-        <span class="invRow-name">${escapeHtml(it.name)}</span>
+        ${it.image ? `<img src="${it.image}" alt="" style="width:44px; height:44px; border-radius:10px; object-fit:cover; flex:0 0 44px;">` : ''}
+        <div style="flex:1; min-width:0;">
+          <span class="invRow-name">${escapeHtml(it.name)}</span>
+          ${expBit}
+        </div>
         ${it.amount ? `<span class="invRow-amount">${escapeHtml(it.amount)}</span>` : ''}
       </div>
-    `).join('');
+    `;
+    }).join('');
   });
   el.innerHTML = html;
   el.querySelectorAll('.invRow').forEach(row=>{
@@ -2827,15 +2932,45 @@ function renderInvItemCategoryPicker(){
   });
 }
 
+function renderInvItemImagePreview(){
+  const wrap = document.getElementById('invItemImgPreviewWrap');
+  const removeBtn = document.getElementById('invItemImageRemoveBtn');
+  if(invItemDraft.image){
+    wrap.innerHTML = `<img class="imgPreview" src="${invItemDraft.image}" alt="">`;
+    removeBtn.style.display = 'inline-block';
+  }else{
+    wrap.innerHTML = '';
+    removeBtn.style.display = 'none';
+  }
+}
+document.getElementById('invItemImageBtn').addEventListener('click', ()=>{
+  document.getElementById('invItemImageInput').click();
+});
+document.getElementById('invItemImageInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  try{
+    invItemDraft.image = await fileToCompressedDataUrl(file);
+    renderInvItemImagePreview();
+  }catch(err){ console.error('Image processing failed', err); }
+  e.target.value = '';
+});
+document.getElementById('invItemImageRemoveBtn').addEventListener('click', ()=>{
+  invItemDraft.image = null;
+  renderInvItemImagePreview();
+});
+
 function openInvItemAdd(){
   editingInvItemId = null;
-  invItemDraft = {name:'', category:'Pantry', amount:''};
+  invItemDraft = {name:'', category:'Pantry', amount:'', image:null};
   document.getElementById('invItemSheetTitle').textContent = 'Add Item';
   document.getElementById('invItemName').value = '';
   document.getElementById('invItemAmount').value = '';
+  document.getElementById('invItemExpDate').value = '';
   document.getElementById('invItemSave').textContent = 'Add Item';
   document.getElementById('invItemDeleteRow').style.display = 'none';
   renderInvItemCategoryPicker();
+  renderInvItemImagePreview();
   blurActive();
   document.getElementById('invItemOverlay').classList.add('open');
 }
@@ -2845,13 +2980,15 @@ function openInvItemEdit(id){
   const item = recipeInventory.find(it=>it.id===id);
   if(!item) return;
   editingInvItemId = id;
-  invItemDraft = {name:item.name, category:item.category, amount:item.amount||''};
+  invItemDraft = {name:item.name, category:item.category, amount:item.amount||'', image:item.image||null};
   document.getElementById('invItemSheetTitle').textContent = 'Edit Item';
   document.getElementById('invItemName').value = item.name;
   document.getElementById('invItemAmount').value = item.amount || '';
+  document.getElementById('invItemExpDate').value = item.expDate || '';
   document.getElementById('invItemSave').textContent = 'Save';
   document.getElementById('invItemDeleteRow').style.display = 'flex';
   renderInvItemCategoryPicker();
+  renderInvItemImagePreview();
   blurActive();
   document.getElementById('invItemOverlay').classList.add('open');
 }
@@ -2871,6 +3008,7 @@ document.getElementById('invItemSave').addEventListener('click', async ()=>{
   const name = document.getElementById('invItemName').value.trim();
   if(!name){ document.getElementById('invItemName').focus(); return; }
   const amount = document.getElementById('invItemAmount').value.trim();
+  const expDate = document.getElementById('invItemExpDate').value;
 
   let newItem = null;
   if(editingInvItemId){
@@ -2878,8 +3016,10 @@ document.getElementById('invItemSave').addEventListener('click', async ()=>{
     item.name = name;
     item.category = invItemDraft.category;
     item.amount = amount;
+    item.expDate = expDate;
+    item.image = invItemDraft.image || null;
   }else{
-    newItem = {id: uid('inv'), name, category: invItemDraft.category, amount};
+    newItem = {id: uid('inv'), name, category: invItemDraft.category, amount, expDate, image: invItemDraft.image || null};
     recipeInventory.push(newItem);
   }
   await saveInventory();
@@ -2900,6 +3040,159 @@ document.getElementById('invItemDelete').addEventListener('click', async ()=>{
   document.getElementById('invItemOverlay').classList.remove('open');
   renderInventoryList();
 });
+
+// -- Groceries List (things to buy; checking one off moves it into Inventory) --
+function renderGroceriesList(){
+  const el = document.getElementById('groceriesListEl');
+  if(!el) return;
+  if(!groceryItems.length){
+    el.innerHTML = `<div class="empty" style="padding:20px 8px;"><div class="big" style="font-size:17px;">Nothing on your list</div>Add what you need to buy — it'll move into Inventory once you've got it.</div>`;
+    return;
+  }
+  let html = '';
+  INV_CATEGORIES.forEach(cat=>{
+    const itemsInCat = groceryItems.filter(it=>it.category===cat);
+    if(!itemsInCat.length) return;
+    html += `<div class="invCatHead">${escapeHtml(cat)}</div>`;
+    html += itemsInCat.map(it => `
+      <div class="invRow" data-id="${it.id}">
+        <input type="checkbox" class="groceryGotBox" data-id="${it.id}" style="width:19px; height:19px; accent-color:var(--teal); flex:0 0 auto;">
+        ${it.image ? `<img src="${it.image}" alt="" style="width:44px; height:44px; border-radius:10px; object-fit:cover; flex:0 0 44px;">` : ''}
+        <span class="invRow-name">${escapeHtml(it.name)}</span>
+        ${it.amount ? `<span class="invRow-amount">${escapeHtml(it.amount)}</span>` : ''}
+      </div>
+    `).join('');
+  });
+  el.innerHTML = html;
+  el.querySelectorAll('.groceryGotBox').forEach(box=>{
+    box.addEventListener('click', (e)=> e.stopPropagation());
+    box.addEventListener('change', (e)=>{
+      if(e.target.checked) markGroceryGotIt(box.dataset.id);
+    });
+  });
+  el.querySelectorAll('.invRow').forEach(row=>{
+    row.addEventListener('click', (e)=>{
+      if(e.target.classList.contains('groceryGotBox')) return;
+      openGroceryEdit(row.dataset.id);
+    });
+  });
+}
+
+function renderGroceryImagePreview(){
+  const wrap = document.getElementById('groceryImgPreviewWrap');
+  const removeBtn = document.getElementById('groceryImageRemoveBtn');
+  if(groceryDraft.image){
+    wrap.innerHTML = `<img class="imgPreview" src="${groceryDraft.image}" alt="">`;
+    removeBtn.style.display = 'inline-block';
+  }else{
+    wrap.innerHTML = '';
+    removeBtn.style.display = 'none';
+  }
+}
+document.getElementById('groceryImageBtn').addEventListener('click', ()=>{
+  document.getElementById('groceryImageInput').click();
+});
+document.getElementById('groceryImageInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  try{
+    groceryDraft.image = await fileToCompressedDataUrl(file);
+    renderGroceryImagePreview();
+  }catch(err){ console.error('Image processing failed', err); }
+  e.target.value = '';
+});
+document.getElementById('groceryImageRemoveBtn').addEventListener('click', ()=>{
+  groceryDraft.image = null;
+  renderGroceryImagePreview();
+});
+
+function renderGroceryCategoryPicker(){
+  const el = document.getElementById('groceryCategoryPicker');
+  el.innerHTML = INV_CATEGORIES.map(cat => `<button type="button" data-v="${cat}" class="${groceryDraft.category===cat?'sel':''}">${escapeHtml(cat)}</button>`).join('');
+  el.querySelectorAll('button[data-v]').forEach(b=>{
+    b.addEventListener('click', ()=>{ groceryDraft.category = b.dataset.v; renderGroceryCategoryPicker(); });
+  });
+}
+
+function openGroceryAdd(){
+  editingGroceryId = null;
+  groceryDraft = {name:'', category:'Pantry', amount:'', image:null};
+  document.getElementById('grocerySheetTitle').textContent = 'Add Grocery Item';
+  document.getElementById('groceryName').value = '';
+  document.getElementById('groceryAmount').value = '';
+  document.getElementById('grocerySave').textContent = 'Add Item';
+  document.getElementById('groceryDeleteRow').style.display = 'none';
+  renderGroceryCategoryPicker();
+  renderGroceryImagePreview();
+  blurActive();
+  document.getElementById('groceryOverlay').classList.add('open');
+}
+document.getElementById('groceryAddBtn').addEventListener('click', openGroceryAdd);
+
+function openGroceryEdit(id){
+  const item = groceryItems.find(it=>it.id===id);
+  if(!item) return;
+  editingGroceryId = id;
+  groceryDraft = {name:item.name, category:item.category, amount:item.amount||'', image:item.image||null};
+  document.getElementById('grocerySheetTitle').textContent = 'Edit Grocery Item';
+  document.getElementById('groceryName').value = item.name;
+  document.getElementById('groceryAmount').value = item.amount || '';
+  document.getElementById('grocerySave').textContent = 'Save';
+  document.getElementById('groceryDeleteRow').style.display = 'flex';
+  renderGroceryCategoryPicker();
+  renderGroceryImagePreview();
+  blurActive();
+  document.getElementById('groceryOverlay').classList.add('open');
+}
+
+document.getElementById('gySheetCloseBtn').addEventListener('click', ()=> document.getElementById('groceryOverlay').classList.remove('open'));
+document.getElementById('groceryOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'groceryOverlay') e.currentTarget.classList.remove('open');
+});
+
+document.getElementById('grocerySave').addEventListener('click', async ()=>{
+  const name = document.getElementById('groceryName').value.trim();
+  if(!name){ document.getElementById('groceryName').focus(); return; }
+  const amount = document.getElementById('groceryAmount').value.trim();
+
+  if(editingGroceryId){
+    const item = groceryItems.find(it=>it.id===editingGroceryId);
+    item.name = name;
+    item.category = groceryDraft.category;
+    item.amount = amount;
+    item.image = groceryDraft.image || null;
+  }else{
+    groceryItems.push({id: uid('gy'), name, category: groceryDraft.category, amount, image: groceryDraft.image || null, addedAt: Date.now()});
+  }
+  await saveGroceries();
+  document.getElementById('groceryOverlay').classList.remove('open');
+  renderGroceriesList();
+});
+
+document.getElementById('groceryDelete').addEventListener('click', async ()=>{
+  if(!editingGroceryId) return;
+  groceryItems = groceryItems.filter(it=>it.id!==editingGroceryId);
+  await saveGroceries();
+  document.getElementById('groceryOverlay').classList.remove('open');
+  renderGroceriesList();
+});
+
+// Checking a grocery item off moves it straight into Inventory, then opens
+// the Inventory edit sheet (pre-filled) so an expiration date can be set right away.
+async function markGroceryGotIt(id){
+  const item = groceryItems.find(it=>it.id===id);
+  if(!item) return;
+  groceryItems = groceryItems.filter(it=>it.id!==id);
+  await saveGroceries();
+  renderGroceriesList();
+
+  const newItem = {id: uid('inv'), name: item.name, category: item.category, amount: item.amount || '', expDate: '', image: item.image || null};
+  recipeInventory.push(newItem);
+  await saveInventory();
+  renderInventoryList();
+
+  openInvItemEdit(newItem.id);
+}
 
 // -- Ingredient \u2194 Inventory linking --
 function guessInvNameFromIngredientText(text){
@@ -4086,8 +4379,48 @@ function renderCalendar(){
   const now = new Date();
   labelEl.textContent = now.toLocaleDateString(undefined, {weekday:'long', month:'long', day:'numeric'}) + ' \u2022 ' + now.toLocaleTimeString(undefined, {hour:'numeric', minute:'2-digit'});
 
+  renderCalendarExpiring(now);
   renderCalendarHabits(now);
   renderCalendarPlaces(now);
+}
+
+function renderCalendarExpiring(now){
+  const block = document.getElementById('calExpiringBlock');
+  const el = document.getElementById('calendarExpiringList');
+  const countEl = document.getElementById('calExpiringCount');
+
+  const todayKey = todayDateKey(now);
+  const expiring = recipeInventory.filter(it=> it.expDate === todayKey);
+
+  if(!expiring.length){
+    block.style.display = 'none';
+    return;
+  }
+  block.style.display = 'block';
+  countEl.textContent = String(expiring.length);
+
+  el.innerHTML = expiring.map(it => `
+    <div class="invRow" data-id="${it.id}" style="align-items:center;">
+      ${it.image ? `<img src="${it.image}" alt="" style="width:44px; height:44px; border-radius:10px; object-fit:cover; flex:0 0 44px;">` : ''}
+      <span class="invRow-name">${escapeHtml(it.name)}</span>
+      ${it.amount ? `<span class="invRow-amount">${escapeHtml(it.amount)}</span>` : ''}
+    </div>
+  `).join('');
+  el.querySelectorAll('.invRow').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      switchTab('tracker');
+      openRecipesHome();
+      recipesSubTab = 'inventory';
+      document.querySelectorAll('#recipesSubTabs button').forEach(b=> b.classList.toggle('sel', b.dataset.v==='inventory'));
+      document.getElementById('recipesListView').style.display = 'none';
+      document.getElementById('recipesGroceriesView').style.display = 'none';
+      document.getElementById('recipesInventoryView').style.display = 'block';
+      document.getElementById('recipeAddBtn').style.display = 'none';
+      document.getElementById('groceryAddBtn').style.display = 'none';
+      document.getElementById('invAddBtn').style.display = 'flex';
+      openInvItemEdit(row.dataset.id);
+    });
+  });
 }
 
 function renderCalendarHabits(now){
