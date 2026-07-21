@@ -1602,17 +1602,26 @@
         <button type="button" class="mediaBtn removeBtn" id="placeImageRemoveBtn" style="display:none;">Remove</button>
       </div>
     </div>
-    <div class="field">
-      <label id="placeLocationLabel">Location</label>
-      <input type="text" id="placeLocation" placeholder="e.g. Downtown">
-      <div class="mediaBtnRow">
-        <button type="button" class="mediaBtn" id="placeMapBtn">View on Map</button>
+
+    <div class="calBlock" style="margin-bottom:20px;">
+      <div class="calBlock-head">
+        <span class="calBlock-title">Location &amp; Hours</span>
+      </div>
+      <div class="calBlock-body">
+        <div class="field" style="margin-bottom:14px;">
+          <label id="placeLocationLabel">Location</label>
+          <input type="text" id="placeLocation" placeholder="e.g. Downtown">
+          <div class="mediaBtnRow">
+            <button type="button" class="mediaBtn" id="placeMapBtn">View on Map</button>
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label>Hours (optional)</label>
+          <div id="placeHoursGrid" class="hoursGrid"></div>
+        </div>
       </div>
     </div>
-    <div class="field">
-      <label>Hours (optional)</label>
-      <div id="placeHoursGrid" class="hoursGrid"></div>
-    </div>
+
     <div class="field">
       <label>Video Link (optional)</label>
       <input type="text" id="placeVideoUrl" placeholder="YouTube, Vimeo, or direct video URL">
@@ -1621,16 +1630,23 @@
       <label>Notes</label>
       <textarea id="placeNotes" placeholder="Why you want to go, details..."></textarea>
     </div>
-    <div class="field">
-      <label>Date & Time (optional)</label>
-      <input type="datetime-local" id="placeDateTime">
+
+    <div class="calBlock" style="margin-bottom:20px;">
+      <div class="calBlock-head">
+        <span class="calBlock-title">Your Plans</span>
+      </div>
+      <div class="calBlock-body">
+        <div class="field" style="margin-bottom:14px;">
+          <label>Date &amp; Time (optional)</label>
+          <input type="datetime-local" id="placeDateTime">
+        </div>
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; text-transform:none; font-family:'Inter',sans-serif; font-size:15px; color:var(--text); letter-spacing:0;">
+          <input type="checkbox" id="placeVisited" style="width:20px; height:20px; accent-color:var(--amber);">
+          Already visited
+        </label>
+      </div>
     </div>
-    <div class="field">
-      <label style="display:flex; align-items:center; gap:8px; cursor:pointer; text-transform:none; font-family:'Inter',sans-serif; font-size:15px; color:var(--text); letter-spacing:0;">
-        <input type="checkbox" id="placeVisited" style="width:20px; height:20px; accent-color:var(--amber);">
-        Already visited
-      </label>
-    </div>
+
     <div class="sheet-actions">
       <button class="btn-cancel" id="placeCancel">Cancel</button>
       <button class="btn-save" id="placeSave">Add Place</button>
@@ -1735,7 +1751,7 @@
       <input type="text" id="recipeTitle" placeholder="e.g. Butter Chicken">
     </div>
     <div class="field">
-      <label>Image</label>
+      <label>Cover Image</label>
       <div id="recipeImgPreviewWrap"></div>
       <input type="file" id="recipeImageInput" accept="image/*" style="display:none">
       <div class="mediaBtnRow">
@@ -1748,25 +1764,31 @@
       <div class="mediaBtnRow">
         <button type="button" class="mediaBtn" id="recipeExtractPhotosBtn" style="display:none;">Extract Photos from Image</button>
       </div>
-      <div class="mediaBtnRow">
-        <input type="file" id="recipeScanMultiInput" accept="image/*" multiple style="display:none">
-        <button type="button" class="mediaBtn" id="recipeScanMultiBtn" style="flex:1;">Scan Multiple Photos at Once</button>
-      </div>
-      <div class="mediaBtnRow">
-        <input type="file" id="recipePdfInput" accept="application/pdf" style="display:none">
-        <button type="button" class="mediaBtn" id="recipePdfBtn" style="flex:1;">Import from PDF</button>
-      </div>
       <div id="recipeScanStatus" style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-dim); margin-top:6px;"></div>
       <div id="recipeScanLines" style="margin-top:8px;"></div>
     </div>
-    <div class="field">
-      <label>Source Link (optional)</label>
-      <input type="text" id="recipeSourceUrl" placeholder="Video or post this recipe came from">
-      <div class="mediaBtnRow">
-        <button type="button" class="mediaBtn" id="recipeFetchBtn" style="flex:1;">Fetch Recipe from Link</button>
+
+    <div class="calBlock" style="margin-bottom:20px;">
+      <div class="calBlock-head">
+        <span class="calBlock-title">Quick Import</span>
       </div>
-      <div id="recipeFetchStatus" style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-dim); margin-top:6px;"></div>
+      <div class="calBlock-body">
+        <div class="tagline" style="margin:0 0 12px;">Skip typing it all in — pull ingredients and steps automatically</div>
+        <input type="file" id="recipeScanMultiInput" accept="image/*" multiple style="display:none">
+        <button type="button" class="mediaBtn" id="recipeScanMultiBtn" style="width:100%; margin-bottom:8px;">Scan Multiple Photos at Once</button>
+        <input type="file" id="recipePdfInput" accept="application/pdf" style="display:none">
+        <button type="button" class="mediaBtn" id="recipePdfBtn" style="width:100%;">Import from PDF</button>
+        <div class="field" style="margin:16px 0 0;">
+          <label>Source Link (optional)</label>
+          <input type="text" id="recipeSourceUrl" placeholder="Video or post this recipe came from">
+          <div class="mediaBtnRow">
+            <button type="button" class="mediaBtn" id="recipeFetchBtn" style="flex:1;">Fetch Recipe from Link</button>
+          </div>
+          <div id="recipeFetchStatus" style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-dim); margin-top:6px;"></div>
+        </div>
+      </div>
     </div>
+
     <div class="field">
       <label style="display:flex; align-items:center; justify-content:space-between;">
         <span>Ingredients</span>
@@ -1777,8 +1799,9 @@
         <input type="text" id="recipeIngredientInput" placeholder="e.g. 1 lb boneless chicken pieces" style="flex:1; padding:9px 11px; border:1.5px solid var(--line); background:var(--card); border-radius:14px; font-family:'Inter',sans-serif; font-size:16px; color:var(--text); outline:none;">
         <button type="button" class="mediaBtn" id="recipeIngredientAddBtn">Add</button>
       </div>
-      <div style="margin-top:10px;">
-        <textarea id="recipeIngredientBulk" placeholder="Or paste a whole list here, one ingredient per line, then tap Add All" style="min-height:90px;"></textarea>
+      <div class="invCatHead" style="margin:14px 0 8px;">Or paste a whole list</div>
+      <div>
+        <textarea id="recipeIngredientBulk" placeholder="One ingredient per line, then tap Add All" style="min-height:90px;"></textarea>
         <div class="mediaBtnRow">
           <button type="button" class="mediaBtn" id="recipeIngredientAddAllBtn" style="flex:1;">Add All Lines</button>
         </div>
