@@ -1510,8 +1510,8 @@
   <div class="sheet">
     <h2>Recipes</h2>
     <div class="seg" id="recipesSubTabs">
-      <button type="button" data-v="inventory" class="sel">Inventory</button>
-      <button type="button" data-v="recipes">Recipes</button>
+      <button type="button" data-v="recipes" class="sel">Recipes</button>
+      <button type="button" data-v="inventory">Inventory</button>
     </div>
     <div id="recipesInventoryView" style="margin-top:18px;">
       <div id="inventoryList" style="margin-top:4px;"></div>
@@ -2410,14 +2410,14 @@ function ingredientHave(ingredientText){
 }
 
 function openRecipesHome(){
-  recipesSubTab = 'inventory';
+  recipesSubTab = 'recipes';
   document.querySelectorAll('#recipesSubTabs button').forEach(b=>{
-    b.classList.toggle('sel', b.dataset.v === 'inventory');
+    b.classList.toggle('sel', b.dataset.v === 'recipes');
   });
-  document.getElementById('recipesInventoryView').style.display = 'block';
-  document.getElementById('recipesListView').style.display = 'none';
-  document.getElementById('invAddBtn').style.display = 'flex';
-  document.getElementById('recipeAddBtn').style.display = 'none';
+  document.getElementById('recipesInventoryView').style.display = 'none';
+  document.getElementById('recipesListView').style.display = 'block';
+  document.getElementById('invAddBtn').style.display = 'none';
+  document.getElementById('recipeAddBtn').style.display = 'flex';
   renderInventoryList();
   renderRecipesList();
   blurActive();
