@@ -3800,8 +3800,7 @@ function render(){
       pressTimer = setTimeout(()=>{
         longPressed = true;
         if(navigator.vibrate) navigator.vibrate(15);
-        if(isAnime) openEpisodeCounter(card.dataset.id);
-        else if(isGame) openEdit(card.dataset.id);
+        openEdit(card.dataset.id);
       }, 480);
     };
     const cancelPress = ()=>{
@@ -3828,6 +3827,7 @@ function render(){
         }
       }
       if(isGame) openGameProgress(card.dataset.id);
+      else if(isAnime) openEpisodeCounter(card.dataset.id);
       else openEdit(card.dataset.id);
     });
   });
