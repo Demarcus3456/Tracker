@@ -119,8 +119,8 @@
   .milestoneBlock-head .mtext.done{text-decoration:line-through; color:var(--text-dim);}
   .milestoneBlock-head .mdel{background:none; border:none; color:var(--rose); font-family:'JetBrains Mono',monospace; font-size:10px; text-transform:uppercase; cursor:pointer; padding:6px 2px; text-decoration:underline;}
 
-  .miniProgress{background:var(--paper-dim); border:1px solid var(--line); height:7px; margin-top:9px; overflow:hidden;}
-  .miniProgress-fill{background:var(--teal); height:100%;}
+  .miniProgress{background:var(--card); border:1.5px solid var(--ink); border-radius:7px; height:11px; margin-top:9px; overflow:hidden; box-shadow:inset 0 1px 3px rgba(28,30,38,0.15);}
+  .miniProgress-fill{background:linear-gradient(180deg, #4fb5a8, var(--teal)); height:100%; min-width:3px;}
   .miniProgress-label{font-family:'JetBrains Mono',monospace; font-size:9.5px; color:var(--text-dim); margin-top:4px; text-transform:uppercase; letter-spacing:0.3px;}
 
   .taskList{margin-top:8px;}
@@ -580,7 +580,7 @@
   }
   .goalRow:active{background:var(--paper-dim); transform:translateY(1px);}
   .goalRow-inner{display:flex; align-items:center; gap:12px;}
-  .goalRow-thumb{width:50px; height:50px; border-radius:12px; object-fit:cover; flex:0 0 50px;}
+  .goalRow-thumb{width:50px; height:50px; border-radius:12px; object-fit:contain; background:var(--card); border:1px solid var(--line); flex:0 0 50px;}
   .goalRow-body{flex:1; min-width:0;}
   .goalRow-top{display:flex; align-items:center; gap:8px;}
   .goalRow-title{flex:1; font-size:14.5px; font-weight:600; color:var(--ink);}
@@ -1324,7 +1324,6 @@
     <div id="cardDetailBanner" class="cdBanner"></div>
     <div class="field">
       <label>Goals</label>
-      <div class="tagline" style="margin:-2px 0 8px;">Tap a goal to open it, press and hold for settings</div>
       <div id="cardGoalsList"></div>
     </div>
   </div>
@@ -2310,6 +2309,20 @@ document.addEventListener('click', (e)=>{
 document.getElementById('accountBtn').addEventListener('click', ()=>{
   document.getElementById('acctDropdown').classList.remove('open');
 });
+
+// Hide the account menu whenever any sheet is open, since sheets have their own close button
+// in roughly the same corner and the two would otherwise overlap.
+(function(){
+  const acctMenu = document.getElementById('acctMenu');
+  const updateAcctMenuVisibility = ()=>{
+    const anyOpen = document.querySelector('.sheet-overlay.open');
+    acctMenu.style.display = anyOpen ? 'none' : 'block';
+  };
+  document.querySelectorAll('.sheet-overlay').forEach(overlay=>{
+    new MutationObserver(updateAcctMenuVisibility).observe(overlay, {attributes:true, attributeFilter:['class']});
+  });
+  updateAcctMenuVisibility();
+})();
 
 document.getElementById('exportBtn').addEventListener('click', ()=>{ exportAllData(); document.getElementById('acctDropdown').classList.remove('open'); });
 
@@ -5258,7 +5271,28 @@ function renderGoals(){
     `;
   }).join('');
   goalListEl.querySelectorAll('.goalcard').forEach(card=>{
-    card.addEventListener('click', ()=> openCardDetail(card.dataset.id));
+    let pressTimer = null;
+    let longPressed = false;
+    const startPress = ()=>{
+      longPressed = false;
+      pressTimer = setTimeout(()=>{
+        longPressed = true;
+        if(navigator.vibrate) navigator.vibrate(15);
+        openCardEdit(card.dataset.id);
+      }, 480);
+    };
+    const cancelPress = ()=>{ if(pressTimer){ clearTimeout(pressTimer); pressTimer = null; } };
+    card.addEventListener('touchstart', startPress, {passive:true});
+    card.addEventListener('touchend', cancelPress);
+    card.addEventListener('touchmove', cancelPress);
+    card.addEventListener('touchcancel', cancelPress);
+    card.addEventListener('mousedown', startPress);
+    card.addEventListener('mouseup', cancelPress);
+    card.addEventListener('mouseleave', cancelPress);
+    card.addEventListener('click', ()=>{
+      if(longPressed){ longPressed = false; return; }
+      openCardDetail(card.dataset.id);
+    });
   });
 }
 
@@ -5441,9 +5475,7 @@ function renderCardDetail(id){
       <div class="cdBanner-title">${escapeHtml(card.title)}</div>
       ${card.date ? `<div class="cdBanner-date">${escapeHtml(card.date)}</div>` : ''}
     </div>
-    <button class="cdBanner-edit" id="cdEditBtn">Edit</button>
   `;
-  document.getElementById('cdEditBtn').addEventListener('click', ()=> openCardEdit(card.id));
 
   const notesArea = document.getElementById('cardDetailNotes');
   if(notesArea) notesArea.remove();
