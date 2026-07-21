@@ -1743,6 +1743,25 @@
   </div>
 </div>
 
+<div class="sheet-overlay" id="ingredientLinkOverlay">
+  <div class="sheet">
+    <button class="sheetClose" id="ingLinkCloseBtn">&times;</button>
+    <h2>Link to Inventory</h2>
+    <div class="tagline" id="ingLinkSubtitle" style="margin:-4px 0 14px;"></div>
+    <div class="field" id="ingLinkCurrentField" style="display:none;">
+      <div class="invRow" style="cursor:default;">
+        <span class="invRow-name">Currently linked to <strong id="ingLinkCurrentName"></strong></span>
+        <button type="button" class="mediaBtn removeBtn" id="ingLinkUnlinkBtn">Unlink</button>
+      </div>
+    </div>
+    <div class="search" style="margin-bottom:6px;">
+      <input type="text" id="ingLinkSearch" placeholder="Search your inventory...">
+    </div>
+    <div id="ingLinkList" style="margin-bottom:10px;"></div>
+    <button type="button" class="mediaBtn" id="ingLinkAddNewBtn" style="width:100%;">+ Add New Inventory Item</button>
+  </div>
+</div>
+
 <div class="sheet-overlay" id="recipeOverlay">
   <div class="sheet">
     <h2 id="recipeSheetTitle">Add Recipe</h2>
@@ -2156,6 +2175,8 @@ const INV_CATEGORIES = ['Seasonings','Meats','Pantry','Produce','Dairy','Other']
 let recipeInventory = [];
 let editingInvItemId = null;
 let invItemDraft = {name:'', category:'Pantry', amount:''};
+let pendingIngredientLink = null;
+let linkingIngredientId = null;
 
 let recipes = [];
 let editingRecipeId = null;
@@ -2717,7 +2738,12 @@ function normalizeIngredientWord(w){
   return w;
 }
 
-function ingredientHave(ingredientText){
+function ingredientHave(ing){
+  const invItemId = (ing && typeof ing === 'object') ? ing.invItemId : null;
+  if(invItemId){
+    return recipeInventory.some(inv=>inv.id===invItemId);
+  }
+  const ingredientText = (ing && typeof ing === 'object') ? ing.text : ing;
   const rawText = (ingredientText||'').toLowerCase();
   const textWords = rawText.split(/[^a-z]+/).filter(Boolean).map(normalizeIngredientWord);
   return recipeInventory.some(inv=>{
@@ -2828,9 +2854,15 @@ function openInvItemEdit(id){
   document.getElementById('invItemOverlay').classList.add('open');
 }
 
-document.getElementById('invItemCancel').addEventListener('click', ()=> document.getElementById('invItemOverlay').classList.remove('open'));
+document.getElementById('invItemCancel').addEventListener('click', ()=>{
+  pendingIngredientLink = null;
+  document.getElementById('invItemOverlay').classList.remove('open');
+});
 document.getElementById('invItemOverlay').addEventListener('click', (e)=>{
-  if(e.target.id === 'invItemOverlay') e.currentTarget.classList.remove('open');
+  if(e.target.id === 'invItemOverlay'){
+    pendingIngredientLink = null;
+    e.currentTarget.classList.remove('open');
+  }
 });
 
 document.getElementById('invItemSave').addEventListener('click', async ()=>{
@@ -2838,17 +2870,25 @@ document.getElementById('invItemSave').addEventListener('click', async ()=>{
   if(!name){ document.getElementById('invItemName').focus(); return; }
   const amount = document.getElementById('invItemAmount').value.trim();
 
+  let newItem = null;
   if(editingInvItemId){
     const item = recipeInventory.find(it=>it.id===editingInvItemId);
     item.name = name;
     item.category = invItemDraft.category;
     item.amount = amount;
   }else{
-    recipeInventory.push({id: uid('inv'), name, category: invItemDraft.category, amount});
+    newItem = {id: uid('inv'), name, category: invItemDraft.category, amount};
+    recipeInventory.push(newItem);
   }
   await saveInventory();
   document.getElementById('invItemOverlay').classList.remove('open');
   renderInventoryList();
+
+  if(newItem && pendingIngredientLink){
+    const {recipeId, ingredientId} = pendingIngredientLink;
+    pendingIngredientLink = null;
+    linkIngredientToInventory(recipeId, ingredientId, newItem.id);
+  }
 });
 
 document.getElementById('invItemDelete').addEventListener('click', async ()=>{
@@ -2857,6 +2897,108 @@ document.getElementById('invItemDelete').addEventListener('click', async ()=>{
   await saveInventory();
   document.getElementById('invItemOverlay').classList.remove('open');
   renderInventoryList();
+});
+
+// -- Ingredient \u2194 Inventory linking --
+function guessInvNameFromIngredientText(text){
+  let t = (text||'').trim();
+  t = t.replace(/\([^)]*\)/g, ' ');
+  t = t.replace(/^[\s\d.\/¼½¾⅓⅔⅛⅜⅝⅞-]+/, '');
+  const units = ['tsp','tbsp','tablespoon','tablespoons','teaspoon','teaspoons','cup','cups','oz','ounce','ounces','lb','lbs','pound','pounds','g','gram','grams','kg','ml','l','liter','liters','clove','cloves','can','cans','pinch','dash','slice','slices','stick','sticks','bunch','head','piece','pieces'];
+  const unitRe = new RegExp('^(' + units.join('|') + ')s?\\b\\.?\\s*(of\\s+)?', 'i');
+  t = t.replace(unitRe, '');
+  t = t.split(',')[0];
+  t = t.replace(/\s+/g,' ').trim();
+  t = t.replace(/\b\w/g, c=>c.toUpperCase());
+  return t || text;
+}
+
+function linkIngredientToInventory(recipeId, ingredientId, invItemId){
+  const r = recipes.find(x=>x.id===recipeId);
+  if(!r) return;
+  const ing = r.ingredients.find(i=>i.id===ingredientId);
+  if(!ing) return;
+  ing.invItemId = invItemId || null;
+  saveRecipes();
+  if(currentRecipeId === recipeId && document.getElementById('recipeDetailOverlay').classList.contains('open')){
+    openRecipeDetail(recipeId);
+  }
+}
+
+function openIngredientLink(recipeId, ingredientId){
+  const r = recipes.find(x=>x.id===recipeId);
+  if(!r) return;
+  const ing = r.ingredients.find(i=>i.id===ingredientId);
+  if(!ing) return;
+  currentRecipeId = recipeId;
+  linkingIngredientId = ingredientId;
+  document.getElementById('ingLinkSubtitle').textContent = ing.text;
+  document.getElementById('ingLinkSearch').value = '';
+  renderIngLinkCurrent(ing);
+  renderIngLinkList('');
+  blurActive();
+  document.getElementById('ingredientLinkOverlay').classList.add('open');
+}
+
+function renderIngLinkCurrent(ing){
+  const field = document.getElementById('ingLinkCurrentField');
+  if(ing.invItemId){
+    const inv = recipeInventory.find(i=>i.id===ing.invItemId);
+    if(inv){
+      field.style.display = 'block';
+      document.getElementById('ingLinkCurrentName').textContent = inv.name;
+      return;
+    }
+  }
+  field.style.display = 'none';
+}
+
+function renderIngLinkList(filterText){
+  const el = document.getElementById('ingLinkList');
+  const t = (filterText||'').trim().toLowerCase();
+  const matches = recipeInventory.filter(inv => !t || inv.name.toLowerCase().includes(t));
+  if(!matches.length){
+    el.innerHTML = `<div class="tagline" style="margin:6px 0;">${recipeInventory.length ? 'No matches.' : 'Nothing in your inventory yet.'}</div>`;
+    return;
+  }
+  let html = '';
+  INV_CATEGORIES.forEach(cat=>{
+    const inCat = matches.filter(it=>it.category===cat);
+    if(!inCat.length) return;
+    html += `<div class="invCatHead">${escapeHtml(cat)}</div>`;
+    html += inCat.map(it => `<div class="invRow" data-id="${it.id}"><span class="invRow-name">${escapeHtml(it.name)}</span></div>`).join('');
+  });
+  el.innerHTML = html;
+  el.querySelectorAll('.invRow').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      linkIngredientToInventory(currentRecipeId, linkingIngredientId, row.dataset.id);
+      document.getElementById('ingredientLinkOverlay').classList.remove('open');
+    });
+  });
+}
+
+document.getElementById('ingLinkSearch').addEventListener('input', (e)=> renderIngLinkList(e.target.value));
+
+document.getElementById('ingLinkUnlinkBtn').addEventListener('click', ()=>{
+  linkIngredientToInventory(currentRecipeId, linkingIngredientId, null);
+  document.getElementById('ingredientLinkOverlay').classList.remove('open');
+});
+
+function closeIngredientLink(){
+  document.getElementById('ingredientLinkOverlay').classList.remove('open');
+}
+document.getElementById('ingLinkCloseBtn').addEventListener('click', closeIngredientLink);
+document.getElementById('ingredientLinkOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'ingredientLinkOverlay') closeIngredientLink();
+});
+
+document.getElementById('ingLinkAddNewBtn').addEventListener('click', ()=>{
+  const r = recipes.find(x=>x.id===currentRecipeId);
+  const ing = r && r.ingredients.find(i=>i.id===linkingIngredientId);
+  pendingIngredientLink = {recipeId: currentRecipeId, ingredientId: linkingIngredientId};
+  closeIngredientLink();
+  openInvItemAdd();
+  if(ing) document.getElementById('invItemName').value = guessInvNameFromIngredientText(ing.text);
 });
 
 // -- Recipes --
@@ -2868,7 +3010,7 @@ function renderRecipesList(){
   }
   el.innerHTML = recipes.slice().sort((a,b)=>(b.addedAt||0)-(a.addedAt||0)).map(r=>{
     const total = r.ingredients.length;
-    const missing = r.ingredients.filter(i=>!ingredientHave(i.text)).length;
+    const missing = r.ingredients.filter(i=>!ingredientHave(i)).length;
     return `
       <div class="recipeCard" data-id="${r.id}">
         <div class="recipeCard-thumb">${r.image ? `<img src="${r.image}" alt="">` : `<span class="placeholderLetter" style="color:var(--muted);">${escapeHtml((r.title||'?').charAt(0).toUpperCase())}</span>`}</div>
@@ -3748,7 +3890,7 @@ function openRecipeDetail(id){
   if(!r.ingredients.length){
     ingEl.innerHTML = `<div class="miniProgress-label">No ingredients listed</div>`;
   }else{
-    const haveCount = realIngredients.filter(ing=>ingredientHave(ing.text)).length;
+    const haveCount = realIngredients.filter(ing=>ingredientHave(ing)).length;
     const missingCount = realIngredients.length - haveCount;
     const summary = `<div class="ingSummary"><span class="have">${haveCount} have</span><span class="missing">${missingCount} missing</span></div>`;
 
@@ -3767,11 +3909,12 @@ function openRecipeDetail(id){
 
     const groupsHtml = groups.map(g=>{
       const rowsHtml = g.items.map(ing=>{
-        const have = ingredientHave(ing.text);
+        const have = ingredientHave(ing);
         const cls = have ? 'have' : 'missing';
+        const linkedIcon = ing.invItemId ? '\u{1F517} ' : '';
         return `
-        <div class="ingRow">
-          <span class="ingRow-text">${escapeHtml(ing.text)}</span>
+        <div class="ingRow" data-rid="${r.id}" data-iid="${ing.id}" style="cursor:pointer;">
+          <span class="ingRow-text">${linkedIcon}${escapeHtml(ing.text)}</span>
           <span class="ingRow-badge ${cls}">${have?'Have':'Missing'}</span>
         </div>
       `;
@@ -3780,6 +3923,9 @@ function openRecipeDetail(id){
     }).join('');
 
     ingEl.innerHTML = summary + groupsHtml;
+    ingEl.querySelectorAll('.ingRow[data-iid]').forEach(row=>{
+      row.addEventListener('click', ()=> openIngredientLink(row.dataset.rid, row.dataset.iid));
+    });
   }
 
   const notesField = document.getElementById('recipeDetailNotesField');
