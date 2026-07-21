@@ -1568,7 +1568,14 @@
         <button type="button" class="mediaBtn removeBtn" id="recipeImageRemoveBtn" style="display:none;">Remove</button>
       </div>
       <div class="mediaBtnRow">
-        <button type="button" class="mediaBtn" id="recipeScanBtn" style="display:none;">Scan Image for Ingredients</button>
+        <button type="button" class="mediaBtn" id="recipeScanBtn" style="display:none;">Scan Image for Text</button>
+      </div>
+      <div class="mediaBtnRow">
+        <button type="button" class="mediaBtn" id="recipeExtractPhotosBtn" style="display:none;">Extract Photos from Image</button>
+      </div>
+      <div class="mediaBtnRow">
+        <input type="file" id="recipeScanMultiInput" accept="image/*" multiple style="display:none">
+        <button type="button" class="mediaBtn" id="recipeScanMultiBtn" style="flex:1;">Scan Multiple Photos at Once</button>
       </div>
       <div id="recipeScanStatus" style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-dim); margin-top:6px;"></div>
       <div id="recipeScanLines" style="margin-top:8px;"></div>
@@ -1582,20 +1589,33 @@
       <div id="recipeFetchStatus" style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-dim); margin-top:6px;"></div>
     </div>
     <div class="field">
-      <label>Ingredients</label>
+      <label style="display:flex; align-items:center; justify-content:space-between;">
+        <span>Ingredients</span>
+        <button type="button" class="mediaBtn removeBtn" id="recipeIngredientClearBtn" style="text-transform:none; padding:4px 10px; font-size:10px;">Clear All</button>
+      </label>
       <div id="recipeIngredientList"></div>
       <div class="mediaBtnRow">
         <input type="text" id="recipeIngredientInput" placeholder="e.g. 1 lb boneless chicken pieces" style="flex:1; padding:9px 11px; border:1.5px solid var(--line); background:var(--card); border-radius:14px; font-family:'Inter',sans-serif; font-size:16px; color:var(--text); outline:none;">
         <button type="button" class="mediaBtn" id="recipeIngredientAddBtn">Add</button>
+      </div>
+      <div style="margin-top:10px;">
+        <textarea id="recipeIngredientBulk" placeholder="Or paste a whole list here, one ingredient per line, then tap Add All" style="min-height:90px;"></textarea>
+        <div class="mediaBtnRow">
+          <button type="button" class="mediaBtn" id="recipeIngredientAddAllBtn" style="flex:1;">Add All Lines</button>
+        </div>
       </div>
     </div>
     <div class="field">
       <label>Notes / Directions</label>
       <textarea id="recipeNotes" placeholder="Steps, tips, cook time..."></textarea>
     </div>
-    <div class="field" id="recipeStepImagesFieldWrap" style="display:none;">
+    <div class="field" id="recipeStepImagesFieldWrap">
       <label>Step Photos</label>
-      <div id="recipeStepImagesPreview" style="display:flex; gap:8px; overflow-x:auto;"></div>
+      <div id="recipeStepImagesPreview" style="display:flex; gap:8px; overflow-x:auto; margin-bottom:8px;"></div>
+      <input type="file" id="recipeStepImageManualInput" accept="image/*" multiple style="display:none">
+      <div class="mediaBtnRow">
+        <button type="button" class="mediaBtn" id="recipeStepImageManualBtn" style="flex:1;">+ Add Step Photo</button>
+      </div>
     </div>
     <div class="sheet-actions">
       <button class="btn-cancel" id="recipeCancel">Cancel</button>
@@ -2574,6 +2594,7 @@ function openRecipeAdd(){
   document.getElementById('recipeNotes').value = '';
   document.getElementById('recipeSourceUrl').value = '';
   document.getElementById('recipeIngredientInput').value = '';
+  document.getElementById('recipeIngredientBulk').value = '';
   document.getElementById('recipeSave').textContent = 'Add Recipe';
   document.getElementById('recipeDeleteRow').style.display = 'none';
   document.getElementById('recipeScanStatus').textContent = '';
@@ -2597,6 +2618,7 @@ function openRecipeEdit(id){
   document.getElementById('recipeNotes').value = r.notes || '';
   document.getElementById('recipeSourceUrl').value = r.sourceUrl || '';
   document.getElementById('recipeIngredientInput').value = '';
+  document.getElementById('recipeIngredientBulk').value = '';
   document.getElementById('recipeSave').textContent = 'Save';
   document.getElementById('recipeDeleteRow').style.display = 'flex';
   document.getElementById('recipeScanStatus').textContent = '';
@@ -2610,13 +2632,21 @@ function openRecipeEdit(id){
 }
 
 function renderRecipeStepImagesPreview(){
-  const wrap = document.getElementById('recipeStepImagesFieldWrap');
   const el = document.getElementById('recipeStepImagesPreview');
   if(recipeDraft.stepImages && recipeDraft.stepImages.length){
-    wrap.style.display = 'block';
-    el.innerHTML = recipeDraft.stepImages.map(src=>`<img src="${src}" alt="" style="width:74px; height:74px; border-radius:10px; object-fit:cover; flex:0 0 74px; border:1.5px solid var(--ink);">`).join('');
+    el.innerHTML = recipeDraft.stepImages.map((src,i)=>`
+      <div style="position:relative; flex:0 0 74px;">
+        <img src="${src}" alt="" style="width:74px; height:74px; border-radius:10px; object-fit:cover; border:1.5px solid var(--ink); display:block;">
+        <button type="button" class="stepImgRemoveBtn" data-i="${i}" style="position:absolute; top:-6px; right:-6px; width:22px; height:22px; border-radius:50%; background:var(--rose); color:#fff; border:1.5px solid var(--paper); font-size:13px; line-height:1; cursor:pointer;">&times;</button>
+      </div>
+    `).join('');
+    el.querySelectorAll('.stepImgRemoveBtn').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        recipeDraft.stepImages.splice(parseInt(b.dataset.i,10), 1);
+        renderRecipeStepImagesPreview();
+      });
+    });
   }else{
-    wrap.style.display = 'none';
     el.innerHTML = '';
   }
 }
@@ -2625,14 +2655,17 @@ function renderRecipeImagePreview(){
   const wrap = document.getElementById('recipeImgPreviewWrap');
   const removeBtn = document.getElementById('recipeImageRemoveBtn');
   const scanBtn = document.getElementById('recipeScanBtn');
+  const extractBtn = document.getElementById('recipeExtractPhotosBtn');
   if(recipeDraft.image){
     wrap.innerHTML = `<img class="imgPreview" src="${recipeDraft.image}" alt="">`;
     removeBtn.style.display = 'inline-block';
     if(scanBtn) scanBtn.style.display = 'inline-block';
+    if(extractBtn) extractBtn.style.display = 'inline-block';
   }else{
     wrap.innerHTML = '';
     removeBtn.style.display = 'none';
     if(scanBtn) scanBtn.style.display = 'none';
+    if(extractBtn) extractBtn.style.display = 'none';
     const linesEl = document.getElementById('recipeScanLines');
     const statusEl = document.getElementById('recipeScanStatus');
     if(linesEl) linesEl.innerHTML = '';
@@ -2747,6 +2780,7 @@ async function resolveFacebookVideoUrl(url){
 // Try a couple of different proxies in sequence before giving up.
 const CORS_PROXIES = [
   (u)=> 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+  (u)=> 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u),
   (u)=> 'https://corsproxy.io/?url=' + encodeURIComponent(u),
 ];
 async function fetchViaProxies(targetUrl){
@@ -2900,7 +2934,50 @@ function isLikelyJunkOcrLine(line){
   if(letters / total < 0.5) return true; // mostly symbols/digits, unlikely to be real ingredient text
   if(/[<>{}[\]=~^`|]/.test(line)) return true; // symbols that show up in UI chrome, not recipe text
   if(/^\d{1,2}:\d{2}\b/.test(line)) return true; // looks like a clock/status bar reading
+  if(/^[a-z]/.test(line)) return true; // starts lowercase — almost always a wrapped continuation of a sentence, not a new list item
   return false;
+}
+
+function renderScanResultsUI(lines, statusEl, linesEl){
+  if(!lines.length){
+    statusEl.textContent = "Couldn't make out any usable text in that image. For best results, scan a clean photo of just the text you need (not a full screenshot with ads/browser UI).";
+    linesEl.innerHTML = '';
+    return;
+  }
+  statusEl.textContent = 'Tap a line to add it as an ingredient, or use the buttons below to add everything at once as the right type:';
+  const bulkHtml = `
+    <div class="mediaBtnRow" style="margin-bottom:10px;">
+      <button type="button" class="mediaBtn" id="scanAddAllIngBtn" style="flex:1;">Add All as Ingredients</button>
+      <button type="button" class="mediaBtn" id="scanAddAllStepsBtn" style="flex:1;">Add All as Steps</button>
+    </div>
+  `;
+  const linesHtml = lines.slice(0, 60).map((l,i) => `<button type="button" class="mediaBtn scanLineBtn" data-i="${i}" style="display:block; width:100%; text-align:left; margin-bottom:6px; white-space:normal;">${escapeHtml(l)}</button>`).join('');
+  linesEl.innerHTML = bulkHtml + linesHtml;
+
+  document.getElementById('scanAddAllIngBtn').addEventListener('click', ()=>{
+    lines.forEach(text=> recipeDraft.ingredients.push({id: uid('ing'), text}));
+    renderRecipeIngredientList();
+    linesEl.querySelectorAll('.scanLineBtn').forEach(b=>{ b.disabled = true; b.style.opacity = '0.4'; });
+    statusEl.textContent = `Added all ${lines.length} lines as ingredients.`;
+  });
+  document.getElementById('scanAddAllStepsBtn').addEventListener('click', ()=>{
+    const notesEl = document.getElementById('recipeNotes');
+    const existing = notesEl.value.trim();
+    notesEl.value = existing ? existing + '\n' + lines.join('\n') : lines.join('\n');
+    linesEl.querySelectorAll('.scanLineBtn').forEach(b=>{ b.disabled = true; b.style.opacity = '0.4'; });
+    statusEl.textContent = `Added all ${lines.length} lines to Notes/Directions.`;
+  });
+
+  linesEl.querySelectorAll('.scanLineBtn').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const text = lines[parseInt(b.dataset.i,10)];
+      recipeDraft.ingredients.push({id: uid('ing'), text});
+      renderRecipeIngredientList();
+      b.disabled = true;
+      b.style.opacity = '0.4';
+      b.textContent = '✓ ' + text;
+    });
+  });
 }
 
 async function scanRecipeImage(){
@@ -2919,23 +2996,7 @@ async function scanRecipeImage(){
     const result = await Tesseract.recognize(recipeDraft.image, 'eng');
     const rawText = result?.data?.text || '';
     const lines = rawText.split('\n').map(l=>l.trim()).filter(l=>l.length > 1 && !isLikelyJunkOcrLine(l));
-
-    if(!lines.length){
-      statusEl.textContent = "Couldn't make out any usable text in that image. For best results, scan a clean photo of just the ingredients list (not a full screenshot with ads/browser UI).";
-    }else{
-      statusEl.textContent = 'Tap a line to add it as an ingredient:';
-      linesEl.innerHTML = lines.slice(0, 20).map((l,i) => `<button type="button" class="mediaBtn scanLineBtn" data-i="${i}" style="display:block; width:100%; text-align:left; margin-bottom:6px; white-space:normal;">${escapeHtml(l)}</button>`).join('');
-      linesEl.querySelectorAll('.scanLineBtn').forEach(b=>{
-        b.addEventListener('click', ()=>{
-          const text = lines[parseInt(b.dataset.i,10)];
-          recipeDraft.ingredients.push({id: uid('ing'), text});
-          renderRecipeIngredientList();
-          b.disabled = true;
-          b.style.opacity = '0.4';
-          b.textContent = '✓ ' + text;
-        });
-      });
-    }
+    renderScanResultsUI(lines, statusEl, linesEl);
   }catch(e){
     console.error('OCR failed', e);
     statusEl.textContent = "Couldn't scan that image. You can still add ingredients manually.";
@@ -2944,6 +3005,161 @@ async function scanRecipeImage(){
   btn.disabled = false;
 }
 document.getElementById('recipeScanBtn').addEventListener('click', scanRecipeImage);
+
+// Detects photo-like regions inside a larger image using pixel analysis (not AI): photos have
+// high color variety and continuous tone, while text-on-white has almost none. This is a
+// heuristic, not object recognition — it works reasonably on clean screenshots with a white
+// background and clearly separated photos, but won't be perfect on busy or complex layouts.
+async function extractPhotoRegionsFromImage(dataUrl){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      try{
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+
+        const rowStep = Math.max(1, Math.floor(img.height / 300));
+        const colStep = Math.max(1, Math.floor(img.width / 120));
+        const rowStats = [];
+        for(let y = 0; y < img.height; y += rowStep){
+          const rowData = ctx.getImageData(0, y, img.width, 1).data;
+          let nonWhite = 0, sampled = 0;
+          const colorSet = new Set();
+          for(let x = 0; x < img.width; x += colStep){
+            const idx = x * 4;
+            const r = rowData[idx], g = rowData[idx+1], b = rowData[idx+2];
+            sampled++;
+            if((r+g+b)/3 < 235) nonWhite++;
+            colorSet.add(`${Math.round(r/32)},${Math.round(g/32)},${Math.round(b/32)}`);
+          }
+          rowStats.push({y, nonWhiteRatio: sampled ? nonWhite/sampled : 0, colorDiversity: colorSet.size});
+        }
+
+        const bands = [];
+        let current = null;
+        rowStats.forEach(r=>{
+          const isPhotoLike = r.nonWhiteRatio > 0.15 && r.colorDiversity > 10;
+          if(isPhotoLike){
+            if(!current) current = {y1:r.y, y2:r.y};
+            else current.y2 = r.y;
+          }else if(current){
+            bands.push(current);
+            current = null;
+          }
+        });
+        if(current) bands.push(current);
+
+        const merged = [];
+        bands.forEach(b=>{
+          const prev = merged[merged.length-1];
+          if(prev && b.y1 - prev.y2 < rowStep * 8) prev.y2 = b.y2;
+          else merged.push({...b});
+        });
+
+        const crops = merged
+          .filter(b => (b.y2 - b.y1) > Math.max(30, img.height * 0.03))
+          .slice(0, 10)
+          .map(b=>{
+            const y0 = Math.max(0, b.y1 - 6);
+            const h = Math.min(img.height - y0, (b.y2 - b.y1) + 12);
+            const cropCanvas = document.createElement('canvas');
+            cropCanvas.width = img.width;
+            cropCanvas.height = h;
+            cropCanvas.getContext('2d').drawImage(img, 0, y0, img.width, h, 0, 0, img.width, h);
+            return cropCanvas.toDataURL('image/jpeg', 0.85);
+          });
+        resolve(crops);
+      }catch(e){ reject(e); }
+    };
+    img.onerror = ()=> reject(new Error('Image failed to load'));
+    img.src = dataUrl;
+  });
+}
+
+document.getElementById('recipeExtractPhotosBtn').addEventListener('click', async ()=>{
+  if(!recipeDraft.image) return;
+  const btn = document.getElementById('recipeExtractPhotosBtn');
+  const statusEl = document.getElementById('recipeScanStatus');
+  const originalText = btn.textContent;
+  btn.textContent = 'Analyzing…';
+  btn.disabled = true;
+  statusEl.textContent = 'Scanning the image for photo-like regions — this is a heuristic, not AI, so results may need review.';
+
+  try{
+    const crops = await extractPhotoRegionsFromImage(recipeDraft.image);
+    if(!crops.length){
+      statusEl.textContent = "Couldn't confidently detect any separate photo regions in that image.";
+    }else{
+      if(!recipeDraft.stepImages) recipeDraft.stepImages = [];
+      recipeDraft.stepImages.push(...crops);
+      renderRecipeStepImagesPreview();
+      statusEl.textContent = `Found ${crops.length} possible photo region${crops.length===1?'':'s'} — added to Step Photos below. Remove any that aren't right by editing later.`;
+    }
+  }catch(e){
+    console.error('Photo extraction failed', e);
+    statusEl.textContent = "Couldn't analyze that image.";
+  }
+  btn.textContent = originalText;
+  btn.disabled = false;
+});
+
+document.getElementById('recipeStepImageManualBtn').addEventListener('click', ()=>{
+  document.getElementById('recipeStepImageManualInput').click();
+});
+document.getElementById('recipeStepImageManualInput').addEventListener('change', async (e)=>{
+  const files = Array.from(e.target.files || []);
+  e.target.value = '';
+  if(!files.length) return;
+  if(!recipeDraft.stepImages) recipeDraft.stepImages = [];
+  for(const file of files){
+    try{
+      const dataUrl = await fileToCompressedDataUrl(file);
+      recipeDraft.stepImages.push(dataUrl);
+    }catch(err){ console.error('Step photo add failed', err); }
+  }
+  renderRecipeStepImagesPreview();
+});
+
+document.getElementById('recipeScanMultiBtn').addEventListener('click', ()=>{
+  document.getElementById('recipeScanMultiInput').click();
+});
+document.getElementById('recipeScanMultiInput').addEventListener('change', async (e)=>{
+  const files = Array.from(e.target.files || []);
+  e.target.value = '';
+  if(!files.length) return;
+
+  const btn = document.getElementById('recipeScanMultiBtn');
+  const statusEl = document.getElementById('recipeScanStatus');
+  const linesEl = document.getElementById('recipeScanLines');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  linesEl.innerHTML = '';
+
+  const allLines = [];
+  try{
+    if(typeof Tesseract === 'undefined') throw new Error('OCR library not loaded');
+    for(let i = 0; i < files.length; i++){
+      btn.textContent = `Scanning ${i+1} of ${files.length}…`;
+      statusEl.textContent = `Reading photo ${i+1} of ${files.length} — this can take a moment.`;
+      const dataUrl = await fileToCompressedDataUrl(files[i]);
+      const result = await Tesseract.recognize(dataUrl, 'eng');
+      const rawText = result?.data?.text || '';
+      const lines = rawText.split('\n').map(l=>l.trim()).filter(l=>l.length > 1 && !isLikelyJunkOcrLine(l));
+      allLines.push(...lines);
+    }
+
+    const uniqueLines = [...new Set(allLines)];
+    renderScanResultsUI(uniqueLines, statusEl, linesEl);
+  }catch(err){
+    console.error('Batch OCR failed', err);
+    statusEl.textContent = "Couldn't scan those images. You can still add ingredients manually.";
+  }
+  btn.textContent = originalText;
+  btn.disabled = false;
+});
 
 function renderRecipeIngredientList(){
   const el = document.getElementById('recipeIngredientList');
@@ -2971,6 +3187,20 @@ document.getElementById('recipeIngredientAddBtn').addEventListener('click', ()=>
 });
 document.getElementById('recipeIngredientInput').addEventListener('keydown', (e)=>{
   if(e.key === 'Enter'){ e.preventDefault(); document.getElementById('recipeIngredientAddBtn').click(); }
+});
+document.getElementById('recipeIngredientAddAllBtn').addEventListener('click', ()=>{
+  const bulk = document.getElementById('recipeIngredientBulk');
+  const lines = bulk.value.split('\n').map(l=>l.trim()).filter(Boolean);
+  if(!lines.length) return;
+  lines.forEach(text=> recipeDraft.ingredients.push({id: uid('ing'), text}));
+  bulk.value = '';
+  renderRecipeIngredientList();
+});
+document.getElementById('recipeIngredientClearBtn').addEventListener('click', ()=>{
+  if(!recipeDraft.ingredients.length) return;
+  if(!confirm('Remove all ingredients from this recipe?')) return;
+  recipeDraft.ingredients = [];
+  renderRecipeIngredientList();
 });
 
 document.getElementById('recipeCancel').addEventListener('click', ()=> document.getElementById('recipeOverlay').classList.remove('open'));
