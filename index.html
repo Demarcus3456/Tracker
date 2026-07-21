@@ -1854,6 +1854,7 @@
     <div class="field">
       <label>Ingredients</label>
       <div id="recipeDetailIngredients"></div>
+      <button type="button" class="mediaBtn" id="recipeAddMissingBtn" style="width:100%; margin-top:10px; display:none;">Add Missing Ingredients to Buylist</button>
     </div>
     <div class="field" id="recipeDetailNotesField" style="display:none;">
       <div style="display:flex; align-items:center; justify-content:space-between;">
@@ -2182,6 +2183,7 @@ let recipes = [];
 let editingRecipeId = null;
 let recipeDraft = {title:'', image:null, ingredients:[], notes:'', stepImages:[]};
 let currentRecipeId = null;
+let currentRecipeMissingIngredients = [];
 let currentRecipeSteps = [];
 let currentRecipeStepImages = [];
 let currentStepIndex = 0;
@@ -3886,12 +3888,18 @@ function openRecipeDetail(id){
   document.getElementById('recipeDetailEditBtn').addEventListener('click', ()=> openRecipeEdit(r.id));
 
   const ingEl = document.getElementById('recipeDetailIngredients');
+  const addMissingBtn = document.getElementById('recipeAddMissingBtn');
   const realIngredients = r.ingredients.filter(ing=>!ing.isHeader);
   if(!r.ingredients.length){
     ingEl.innerHTML = `<div class="miniProgress-label">No ingredients listed</div>`;
+    addMissingBtn.style.display = 'none';
+    currentRecipeMissingIngredients = [];
   }else{
-    const haveCount = realIngredients.filter(ing=>ingredientHave(ing)).length;
-    const missingCount = realIngredients.length - haveCount;
+    const missingIngredients = realIngredients.filter(ing=>!ingredientHave(ing));
+    currentRecipeMissingIngredients = missingIngredients;
+    const haveCount = realIngredients.length - missingIngredients.length;
+    const missingCount = missingIngredients.length;
+    addMissingBtn.style.display = missingCount ? 'block' : 'none';
     const summary = `<div class="ingSummary"><span class="have">${haveCount} have</span><span class="missing">${missingCount} missing</span></div>`;
 
     // Group sequentially by section header markers, preserving the recipe's own structure
@@ -3973,6 +3981,32 @@ document.getElementById('recipeDetailClose').addEventListener('click', ()=>{
 });
 document.getElementById('recipeDetailOverlay').addEventListener('click', (e)=>{
   if(e.target.id === 'recipeDetailOverlay') e.currentTarget.classList.remove('open');
+});
+
+document.getElementById('recipeAddMissingBtn').addEventListener('click', async ()=>{
+  const existingTitles = new Set(buylistItems.map(b=>(b.title||'').toLowerCase().trim()));
+  let addedCount = 0;
+  currentRecipeMissingIngredients.forEach(ing=>{
+    const title = guessInvNameFromIngredientText(ing.text);
+    const key = title.toLowerCase().trim();
+    if(!key || existingTitles.has(key)) return;
+    existingTitles.add(key);
+    buylistItems.push({
+      id: uid('b'),
+      title, price: '', url: '', notes: '',
+      image: null, categoryId: null,
+      addedAt: Date.now()
+    });
+    addedCount++;
+  });
+  if(addedCount){
+    await saveBuylist();
+    renderBuylist();
+  }
+  const btn = document.getElementById('recipeAddMissingBtn');
+  const original = btn.textContent;
+  btn.textContent = addedCount ? `Added ${addedCount} to Buylist` : 'Already on your Buylist';
+  setTimeout(()=>{ btn.textContent = original; }, 1800);
 });
 
 // -- Step-by-step cooking mode --
