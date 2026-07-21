@@ -1593,6 +1593,10 @@
       <label>Notes / Directions</label>
       <textarea id="recipeNotes" placeholder="Steps, tips, cook time..."></textarea>
     </div>
+    <div class="field" id="recipeStepImagesFieldWrap" style="display:none;">
+      <label>Step Photos</label>
+      <div id="recipeStepImagesPreview" style="display:flex; gap:8px; overflow-x:auto;"></div>
+    </div>
     <div class="sheet-actions">
       <button class="btn-cancel" id="recipeCancel">Cancel</button>
       <button class="btn-save" id="recipeSave">Add Recipe</button>
@@ -1616,6 +1620,10 @@
         <button type="button" class="mediaBtn" id="recipeStepModeBtn" style="display:none;">Step by Step</button>
       </div>
       <div id="recipeDetailNotes" class="cdNotes" style="margin-top:8px;"></div>
+    </div>
+    <div class="field" id="recipeDetailStepImagesField" style="display:none;">
+      <label>Step Photos</label>
+      <div id="recipeDetailStepImages" style="display:flex; gap:8px; overflow-x:auto;"></div>
     </div>
     <div class="sheet-actions">
       <button class="btn-cancel" id="recipeDetailClose">Close</button>
@@ -1923,7 +1931,7 @@ let invItemDraft = {name:'', category:'Pantry', amount:''};
 
 let recipes = [];
 let editingRecipeId = null;
-let recipeDraft = {title:'', image:null, ingredients:[], notes:''};
+let recipeDraft = {title:'', image:null, ingredients:[], notes:'', stepImages:[]};
 let currentRecipeId = null;
 let currentRecipeSteps = [];
 let currentStepIndex = 0;
@@ -2560,7 +2568,7 @@ function renderRecipesList(){
 
 function openRecipeAdd(){
   editingRecipeId = null;
-  recipeDraft = {title:'', image:null, ingredients:[], notes:'', sourceUrl:''};
+  recipeDraft = {title:'', image:null, ingredients:[], notes:'', sourceUrl:'', stepImages:[]};
   document.getElementById('recipeSheetTitle').textContent = 'Add Recipe';
   document.getElementById('recipeTitle').value = '';
   document.getElementById('recipeNotes').value = '';
@@ -2573,6 +2581,7 @@ function openRecipeAdd(){
   document.getElementById('recipeScanLines').innerHTML = '';
   renderRecipeImagePreview();
   renderRecipeIngredientList();
+  renderRecipeStepImagesPreview();
   blurActive();
   document.getElementById('recipeOverlay').classList.add('open');
 }
@@ -2582,7 +2591,7 @@ function openRecipeEdit(id){
   const r = recipes.find(x=>x.id===id);
   if(!r) return;
   editingRecipeId = id;
-  recipeDraft = {title:r.title, image:r.image||null, ingredients:r.ingredients.map(i=>({...i})), notes:r.notes||'', sourceUrl:r.sourceUrl||''};
+  recipeDraft = {title:r.title, image:r.image||null, ingredients:r.ingredients.map(i=>({...i})), notes:r.notes||'', sourceUrl:r.sourceUrl||'', stepImages:(r.stepImages||[]).slice()};
   document.getElementById('recipeSheetTitle').textContent = 'Edit Recipe';
   document.getElementById('recipeTitle').value = r.title;
   document.getElementById('recipeNotes').value = r.notes || '';
@@ -2595,8 +2604,21 @@ function openRecipeEdit(id){
   document.getElementById('recipeScanLines').innerHTML = '';
   renderRecipeImagePreview();
   renderRecipeIngredientList();
+  renderRecipeStepImagesPreview();
   blurActive();
   document.getElementById('recipeOverlay').classList.add('open');
+}
+
+function renderRecipeStepImagesPreview(){
+  const wrap = document.getElementById('recipeStepImagesFieldWrap');
+  const el = document.getElementById('recipeStepImagesPreview');
+  if(recipeDraft.stepImages && recipeDraft.stepImages.length){
+    wrap.style.display = 'block';
+    el.innerHTML = recipeDraft.stepImages.map(src=>`<img src="${src}" alt="" style="width:74px; height:74px; border-radius:10px; object-fit:cover; flex:0 0 74px; border:1.5px solid var(--ink);">`).join('');
+  }else{
+    wrap.style.display = 'none';
+    el.innerHTML = '';
+  }
 }
 
 function renderRecipeImagePreview(){
@@ -2690,14 +2712,26 @@ function extractInstructionsText(field){
   return '';
 }
 
+function extractInstructionImages(field){
+  const urls = [];
+  const collect = (f)=>{
+    if(!f) return;
+    if(Array.isArray(f)){ f.forEach(collect); return; }
+    if(typeof f === 'object'){
+      if(f.image) urls.push(...[extractImageUrl(f.image)].flat().filter(Boolean));
+      if(f.itemListElement) collect(f.itemListElement);
+    }
+  };
+  collect(field);
+  return [...new Set(urls)];
+}
+
 // Facebook's video embed plugin needs the canonical reel/video URL, not a /share/ redirect link.
 // Resolve it via the proxy by reading the canonical/og:url meta tag from the redirected page.
 async function resolveFacebookVideoUrl(url){
   if(!/\/share\//.test(url)) return url;
   try{
-    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
-    const res = await fetch(proxyUrl);
-    if(!res.ok) return url;
+    const res = await fetchViaProxies(url);
     const html = await res.text();
     const doc = new DOMParser().parseFromString(html, 'text/html');
     const canonical = doc.querySelector('link[rel="canonical"]')?.getAttribute('href')
@@ -2709,9 +2743,29 @@ async function resolveFacebookVideoUrl(url){
   }
 }
 
+// Some sites specifically blocklist well-known public CORS proxies as an anti-scraping measure.
+// Try a couple of different proxies in sequence before giving up.
+const CORS_PROXIES = [
+  (u)=> 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+  (u)=> 'https://corsproxy.io/?url=' + encodeURIComponent(u),
+];
+async function fetchViaProxies(targetUrl){
+  let lastErr = null;
+  for(const buildProxyUrl of CORS_PROXIES){
+    try{
+      const res = await fetch(buildProxyUrl(targetUrl));
+      if(res.ok) return res;
+      lastErr = new Error('Fetch failed: ' + res.status);
+    }catch(e){
+      lastErr = e;
+    }
+  }
+  throw lastErr || new Error('All proxies failed');
+}
+
 async function fetchImageFromUrl(imgUrl, baseUrl){
   const absUrl = new URL(imgUrl, baseUrl).href;
-  const imgRes = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(absUrl));
+  const imgRes = await fetchViaProxies(absUrl);
   const blob = await imgRes.blob();
   return await fileToCompressedDataUrl(blob);
 }
@@ -2729,14 +2783,12 @@ async function fetchRecipeFromLink(){
   statusEl.textContent = '';
 
   try{
-    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
-    const res = await fetch(proxyUrl);
-    if(!res.ok) throw new Error('Fetch failed: ' + res.status);
+    const res = await fetchViaProxies(url);
     const html = await res.text();
     const doc = new DOMParser().parseFromString(html, 'text/html');
 
     const recipeData = findRecipeInJsonLd(doc);
-    let gotTitle = false, gotIngredients = false, gotImage = false, gotInstructions = false;
+    let gotTitle = false, gotIngredients = false, gotImage = false, gotInstructions = false, gotStepImages = false;
     let imgUrl = null;
 
     if(recipeData){
@@ -2758,6 +2810,18 @@ async function fetchRecipeFromLink(){
         if(instrText){
           document.getElementById('recipeNotes').value = instrText;
           gotInstructions = true;
+        }
+        const stepImgUrls = extractInstructionImages(recipeData.recipeInstructions).slice(0, 8);
+        if(stepImgUrls.length){
+          recipeDraft.stepImages = [];
+          for(const su of stepImgUrls){
+            try{
+              const dataUrl = await fetchImageFromUrl(su, url);
+              recipeDraft.stepImages.push(dataUrl);
+              gotStepImages = true;
+            }catch(stepImgErr){ console.error('Step image fetch failed', stepImgErr); }
+          }
+          renderRecipeStepImagesPreview();
         }
       }
       imgUrl = extractImageUrl(recipeData.image);
@@ -2815,6 +2879,7 @@ async function fetchRecipeFromLink(){
       if(gotIngredients) parts.push('ingredients');
       if(gotInstructions) parts.push('instructions');
       if(gotImage) parts.push('photo');
+      if(gotStepImages) parts.push('step photos');
       let msg = `Filled in ${parts.length ? parts.join(', ') : 'the title'} — double-check before saving.`;
       if(imageAttempted && imageFailed) msg += ' (Found a photo but couldn\u2019t download it — try Scan Image or add one manually.)';
       statusEl.textContent = msg;
@@ -2827,6 +2892,16 @@ async function fetchRecipeFromLink(){
   btn.disabled = false;
 }
 document.getElementById('recipeFetchBtn').addEventListener('click', fetchRecipeFromLink);
+
+function isLikelyJunkOcrLine(line){
+  const letters = (line.match(/[a-zA-Z]/g) || []).length;
+  const total = line.length;
+  if(total < 3) return true;
+  if(letters / total < 0.5) return true; // mostly symbols/digits, unlikely to be real ingredient text
+  if(/[<>{}[\]=~^`|]/.test(line)) return true; // symbols that show up in UI chrome, not recipe text
+  if(/^\d{1,2}:\d{2}\b/.test(line)) return true; // looks like a clock/status bar reading
+  return false;
+}
 
 async function scanRecipeImage(){
   if(!recipeDraft.image) return;
@@ -2843,10 +2918,10 @@ async function scanRecipeImage(){
     if(typeof Tesseract === 'undefined') throw new Error('OCR library not loaded');
     const result = await Tesseract.recognize(recipeDraft.image, 'eng');
     const rawText = result?.data?.text || '';
-    const lines = rawText.split('\n').map(l=>l.trim()).filter(l=>l.length > 1);
+    const lines = rawText.split('\n').map(l=>l.trim()).filter(l=>l.length > 1 && !isLikelyJunkOcrLine(l));
 
     if(!lines.length){
-      statusEl.textContent = "Couldn't make out any text in that image.";
+      statusEl.textContent = "Couldn't make out any usable text in that image. For best results, scan a clean photo of just the ingredients list (not a full screenshot with ads/browser UI).";
     }else{
       statusEl.textContent = 'Tap a line to add it as an ingredient:';
       linesEl.innerHTML = lines.slice(0, 20).map((l,i) => `<button type="button" class="mediaBtn scanLineBtn" data-i="${i}" style="display:block; width:100%; text-align:left; margin-bottom:6px; white-space:normal;">${escapeHtml(l)}</button>`).join('');
@@ -2908,6 +2983,7 @@ document.getElementById('recipeSave').addEventListener('click', async ()=>{
   if(!title){ document.getElementById('recipeTitle').focus(); return; }
   const notes = document.getElementById('recipeNotes').value.trim();
   const sourceUrl = document.getElementById('recipeSourceUrl').value.trim();
+  const stepImages = (recipeDraft.stepImages || []).slice();
 
   if(editingRecipeId){
     const r = recipes.find(x=>x.id===editingRecipeId);
@@ -2916,6 +2992,7 @@ document.getElementById('recipeSave').addEventListener('click', async ()=>{
     r.image = recipeDraft.image || null;
     r.ingredients = recipeDraft.ingredients;
     r.sourceUrl = sourceUrl;
+    r.stepImages = stepImages;
   }else{
     recipes.push({
       id: uid('rc'),
@@ -2923,6 +3000,7 @@ document.getElementById('recipeSave').addEventListener('click', async ()=>{
       image: recipeDraft.image || null,
       ingredients: recipeDraft.ingredients,
       sourceUrl,
+      stepImages,
       addedAt: Date.now()
     });
   }
@@ -2992,6 +3070,14 @@ function openRecipeDetail(id){
   }else{
     notesField.style.display = 'none';
     currentRecipeSteps = [];
+  }
+
+  const stepImgField = document.getElementById('recipeDetailStepImagesField');
+  if(r.stepImages && r.stepImages.length){
+    stepImgField.style.display = 'block';
+    document.getElementById('recipeDetailStepImages').innerHTML = r.stepImages.map(src=>`<img src="${src}" alt="" style="width:88px; height:88px; border-radius:10px; object-fit:cover; flex:0 0 88px; border:1.5px solid var(--ink);">`).join('');
+  }else{
+    stepImgField.style.display = 'none';
   }
 
   blurActive();
