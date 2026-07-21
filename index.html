@@ -89,6 +89,26 @@
   .progressbar-fill{background:linear-gradient(180deg, #e8c069, var(--amber)); height:100%; box-shadow:0 1px 0 rgba(255,255,255,0.35) inset;}
   .goalcard-meta{display:flex; justify-content:space-between; margin-top:8px; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-dim);}
 
+  .gamePctRow{align-items:center; gap:10px;}
+  .gamePctBar{
+    flex:1; height:13px; border-radius:8px; background:var(--paper-dim); border:1.5px solid var(--ink);
+    overflow:hidden; box-shadow:inset 0 2px 5px rgba(0,0,0,0.18); position:relative;
+  }
+  .gamePctBar-fill{
+    height:100%; border-radius:6px; position:relative;
+    background:linear-gradient(90deg, #2f9e8f, #3fc9a8 55%, #6fe3c4);
+    box-shadow:0 0 8px rgba(63,201,168,0.55), 0 1px 0 rgba(255,255,255,0.35) inset;
+    transition:width 0.3s ease;
+  }
+  .gamePctBar-fill::after{
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(180deg, rgba(255,255,255,0.35), transparent 60%);
+  }
+  .gamePctLabel{
+    font-family:'JetBrains Mono',monospace; font-size:11.5px; font-weight:600; color:var(--teal);
+    white-space:nowrap; flex:0 0 auto;
+  }
+
   .milestoneBlock{border:1.5px solid var(--line); background:var(--paper); border-radius:14px; padding:11px; margin-bottom:10px;}
   .milestoneBlock-head{display:flex; align-items:center; gap:8px;}
   .milestoneBlock-head .mstage{
@@ -3730,9 +3750,9 @@ function render(){
           </div>
         ` : ''}
         ${gamePct > 0 ? `
-          <div class="card-bottom">
-            <div class="progressbar" style="flex:1;"><div class="progressbar-fill" style="width:${gamePct}%"></div></div>
-            <span class="card-meta" style="margin:0 0 0 10px; white-space:nowrap;">${gamePct}%</span>
+          <div class="card-bottom gamePctRow">
+            <div class="gamePctBar"><div class="gamePctBar-fill" style="width:${gamePct}%"></div></div>
+            <span class="gamePctLabel">🎮 ${gamePct}%</span>
           </div>
         ` : ''}
       </div>
