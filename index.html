@@ -39,10 +39,7 @@
   .view{display:block;}
 
   .bottomnav{
-    position:fixed; left:12px; right:12px; bottom:calc(12px + env(safe-area-inset-bottom)); z-index:35;
-    background:linear-gradient(180deg, var(--card) 0%, var(--paper-dim) 100%); border:1.5px solid var(--ink); border-radius:26px;
-    display:flex; padding:2px;
-    box-shadow:0 1px 0 rgba(255,255,255,0.5) inset, 0 10px 28px rgba(28,30,38,0.28), 0 2px 6px rgba(28,30,38,0.15);
+    display:none;
   }
   .navBtn{
     flex:1; background:none; border:none; cursor:pointer; color:var(--text-dim);
@@ -174,6 +171,7 @@
     font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-dim);
     background:var(--card); border:1px solid var(--line); padding:2px 9px; border-radius:10px; flex:0 0 auto;
   }
+  .calBlock-chevron{color:var(--muted); font-size:14px; flex:0 0 auto;}
   .calBlock-body{padding:12px 14px;}
   .calBlock-body .search{margin-bottom:12px;}
   .calBlock-body .invCatHead:first-child{margin-top:0;}
@@ -655,7 +653,7 @@
   .topbar{
     position:sticky; top:0; z-index:20;
     background:linear-gradient(180deg, var(--paper) 60%, var(--paper-dim) 100%); border-bottom:1.5px solid var(--ink);
-    padding:calc(18px + env(safe-area-inset-top)) 16px 12px;
+    padding:calc(18px + env(safe-area-inset-top)) 16px 12px 60px;
     box-shadow:0 8px 20px rgba(28,30,38,0.06);
   }
   h1{
@@ -752,7 +750,7 @@
   .empty .big{font-family:'Barlow Condensed',sans-serif; font-size:24px; color:var(--ink); text-transform:uppercase; margin-bottom:6px;}
 
   .fab{
-    position:fixed; right:18px; bottom:calc(96px + env(safe-area-inset-bottom)); z-index:30;
+    position:fixed; right:18px; bottom:calc(24px + env(safe-area-inset-bottom)); z-index:30;
     width:58px; height:58px; border-radius:50%;
     background:linear-gradient(145deg, #33394a, var(--ink)); color:var(--paper);
     border:none; font-size:28px; display:flex; align-items:center; justify-content:center;
@@ -898,27 +896,64 @@
 
   .loading{padding:40px; text-align:center; color:var(--muted); font-family:'JetBrains Mono',monospace; font-size:12px;}
 
-  .acctMenu{position:fixed; top:calc(10px + env(safe-area-inset-top)); right:12px; z-index:50;}
-  .acctMenuBtn{
-    width:38px; height:38px; border-radius:50%; border:1.5px solid var(--ink); background:var(--card);
-    color:var(--ink); font-size:20px; line-height:1; display:flex; align-items:center; justify-content:center;
-    cursor:pointer; box-shadow:0 4px 10px rgba(28,30,38,0.18);
+  .hamburgerBtn{
+    position:fixed; top:calc(10px + env(safe-area-inset-top)); left:12px; z-index:50;
+    width:34px; height:34px; border-radius:50%; border:1.5px solid var(--line); background:rgba(255,255,255,0.7);
+    backdrop-filter:blur(2px); color:var(--ink); display:flex; align-items:center; justify-content:center; flex-direction:column; gap:3px;
+    cursor:pointer; box-shadow:0 2px 6px rgba(28,30,38,0.12);
   }
-  .acctDropdown{
-    display:none; flex-direction:column; gap:8px; position:absolute; top:46px; right:0; min-width:210px;
-    background:var(--paper); border:1.5px solid var(--ink); border-radius:14px; padding:12px;
-    box-shadow:0 12px 28px rgba(28,30,38,0.22);
+  .hamburgerBtn span{width:14px; height:1.5px; background:var(--ink); border-radius:2px;}
+
+  .drawerOverlay{
+    position:fixed; inset:0; background:rgba(10,12,18,0.32); z-index:60;
+    display:none; opacity:0; transition:opacity 0.2s ease;
   }
-  .acctDropdown.open{display:flex;}
-  .acctDropdown-status{
-    font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-dim);
-    padding:2px 2px 8px; border-bottom:1px solid var(--line); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  .drawerOverlay.open{display:block; opacity:1;}
+  .drawerPanel{
+    position:fixed; top:0; left:0; bottom:0; width:78%; max-width:300px;
+    background:linear-gradient(180deg, #2c3448 0%, #1c2130 100%); color:#e7ebf2;
+    transform:translateX(-100%); transition:transform 0.22s ease;
+    overflow-y:auto; -webkit-overflow-scrolling:touch;
+    padding:calc(20px + env(safe-area-inset-top)) 0 calc(20px + env(safe-area-inset-bottom));
   }
-  .acctDropdown button{
-    background:var(--card); border:1.5px solid var(--line); color:var(--text); border-radius:10px; padding:9px 12px;
-    font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase; cursor:pointer; text-align:left;
+  .drawerOverlay.open .drawerPanel{transform:translateX(0);}
+  .drawerHeader{padding:6px 20px 20px; border-bottom:1px solid rgba(255,255,255,0.12); margin-bottom:10px;}
+  .drawerHeader-name{font-family:'Barlow Condensed',sans-serif; font-size:20px; font-weight:700; text-transform:uppercase;}
+  .drawerHeader-status{
+    font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#aab2c5; margin-top:4px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
-  .acctDropdown button:active{background:var(--paper-dim);}
+  .drawerNavList{display:flex; flex-direction:column; padding:6px 10px;}
+  .drawerLevels{position:relative; overflow:hidden;}
+  .drawerLevel{
+    width:100%; flex:0 0 100%;
+  }
+  .drawerLevel-sub{display:none;}
+  .drawerLevels.showSub .drawerLevel-main{display:none;}
+  .drawerLevels.showSub .drawerLevel-sub{display:block; animation:drawerSlideIn 0.22s ease;}
+  @keyframes drawerSlideIn{from{transform:translateX(24px); opacity:0;} to{transform:translateX(0); opacity:1;}}
+  .drawerBackBtn{
+    display:flex; align-items:center; gap:10px; width:100%; background:none; border:none; cursor:pointer;
+    color:#e7ebf2; font-family:'Barlow Condensed',sans-serif; font-size:17px; font-weight:700; text-transform:uppercase;
+    padding:10px 20px 14px; text-align:left;
+  }
+  .drawerBackBtn svg{width:18px; height:18px; stroke:#c3c9d9; flex:0 0 auto;}
+  .drawerNavItem{
+    display:flex; flex-direction:row; align-items:center; gap:14px; padding:13px 12px; border-radius:12px; border:none;
+    background:none; color:#e7ebf2; font-family:'Inter',sans-serif; font-size:15px; text-align:left; cursor:pointer;
+    text-transform:none; letter-spacing:normal; margin:0; width:100%;
+  }
+  .drawerNavItem svg{width:20px; height:20px; flex:0 0 auto; stroke:#c3c9d9;}
+  .drawerNavItem.active{background:rgba(255,255,255,0.12);}
+  .drawerNavItem.active svg{stroke:#fff;}
+  .drawerNavItem:active{background:rgba(255,255,255,0.08);}
+  .drawerDivider{height:1px; background:rgba(255,255,255,0.12); margin:14px 20px;}
+  .drawerActions{display:flex; flex-direction:column; gap:8px; padding:0 20px;}
+  .drawerActions button{
+    background:rgba(255,255,255,0.06); border:1.5px solid rgba(255,255,255,0.18); color:#e7ebf2; border-radius:10px;
+    padding:10px 12px; font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase; cursor:pointer; text-align:left;
+  }
+  .drawerActions button:active{background:rgba(255,255,255,0.14);}
 
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -929,14 +964,58 @@
 </head>
 <body>
 
-<div class="acctMenu" id="acctMenu">
-  <button class="acctMenuBtn" id="acctMenuBtn" title="Account">&#8942;</button>
-  <div class="acctDropdown" id="acctDropdown">
-    <div class="acctDropdown-status" id="accountStatus">Not signed in</div>
-    <button id="exportBtn">Export Backup</button>
-    <button id="importBtn">Import Backup</button>
-    <input type="file" id="importFileInput" accept="application/json" style="display:none;">
-    <button id="accountBtn">Sign in with Google</button>
+<button class="hamburgerBtn" id="hamburgerBtn" title="Menu"><span></span><span></span><span></span></button>
+
+<div class="drawerOverlay" id="drawerOverlay">
+  <div class="drawerPanel" id="drawerPanel">
+    <div class="drawerHeader">
+      <div class="drawerHeader-name" id="drawerHeaderName">Tracker</div>
+      <div class="drawerHeader-status" id="accountStatus">Not signed in</div>
+    </div>
+    <div class="drawerLevels" id="drawerLevels">
+      <div class="drawerLevel drawerLevel-main" id="drawerLevelMain">
+        <div class="drawerNavList" id="drawerNavList">
+          <button class="navBtn drawerNavItem active" data-tab="tracker">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+            <span>Tracker</span>
+          </button>
+          <button class="navBtn drawerNavItem" data-tab="roadmaps">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 4h13l-3 4 3 4H5"/></svg>
+            <span>Roadmaps</span>
+          </button>
+          <button class="navBtn drawerNavItem" data-tab="buylist">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>
+            <span>Buylist</span>
+          </button>
+          <button class="navBtn drawerNavItem" data-tab="information">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16" stroke-linecap="round"/><circle cx="12" cy="7.5" r="0.9" fill="currentColor" stroke="none"/></svg>
+            <span>Information</span>
+          </button>
+          <button class="navBtn drawerNavItem" data-tab="savings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.4c0-1.1 1.1-2 2.5-2s2.5.75 2.5 1.8c0 2.3-5 1.3-5 3.7 0 1.1 1.1 2 2.5 2s2.5-.9 2.5-2"/></svg>
+            <span>Savings</span>
+          </button>
+          <button class="navBtn drawerNavItem" data-tab="calendar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg>
+            <span>Calendar</span>
+          </button>
+        </div>
+      </div>
+      <div class="drawerLevel drawerLevel-sub" id="drawerLevelSub">
+        <button class="drawerBackBtn" id="drawerBackBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          <span id="drawerSubTitle">Menu</span>
+        </button>
+        <div class="drawerNavList" id="drawerSubItems"></div>
+      </div>
+    </div>
+    <div class="drawerDivider"></div>
+    <div class="drawerActions">
+      <button id="exportBtn">Export Backup</button>
+      <button id="importBtn">Import Backup</button>
+      <input type="file" id="importFileInput" accept="application/json" style="display:none;">
+      <button id="accountBtn">Sign in with Google</button>
+    </div>
   </div>
 </div>
 
@@ -993,7 +1072,7 @@
   <div class="list">
     <div class="calBlock" id="calExpiringBlock" style="display:none;">
       <div class="calBlock-head">
-        <span class="calBlock-title">Expiring Today</span>
+        <span class="calBlock-title">Expiring Soon</span>
         <span class="calBlock-count" id="calExpiringCount"></span>
       </div>
       <div class="calBlock-body" id="calendarExpiringList"></div>
@@ -1005,11 +1084,11 @@
       </div>
       <div class="calBlock-body" id="calendarHabitsList"></div>
     </div>
-    <div class="calBlock" id="calPlacesBlock">
+    <div class="calBlock" id="calPlacesBlock" style="display:none;">
       <div class="calBlock-head">
-        <span class="calBlock-title">Places</span>
+        <span class="calBlock-title">Dating</span>
       </div>
-      <div class="calBlock-body">
+      <div class="calBlock-body" id="calPlacesBody">
         <div class="search">
           <input type="text" id="calendarLocationSearch" placeholder="Search by location (e.g. Houston)...">
         </div>
@@ -1914,7 +1993,7 @@
     <div class="field">
       <label>Ingredients</label>
       <div id="recipeDetailIngredients"></div>
-      <button type="button" class="mediaBtn" id="recipeAddMissingBtn" style="width:100%; margin-top:10px; display:none;">Add Missing Ingredients to Buylist</button>
+      <button type="button" class="mediaBtn" id="recipeAddMissingBtn" style="width:100%; margin-top:10px; display:none;">Add Missing Ingredients to Groceries List</button>
     </div>
     <div class="field" id="recipeDetailNotesField" style="display:none;">
       <div style="display:flex; align-items:center; justify-content:space-between;">
@@ -2410,36 +2489,93 @@ function exportAllData(){
   document.body.removeChild(a);
   setTimeout(()=> URL.revokeObjectURL(url), 1000);
 }
-document.getElementById('acctMenuBtn').addEventListener('click', (e)=>{
-  e.stopPropagation();
-  document.getElementById('acctDropdown').classList.toggle('open');
-});
-document.addEventListener('click', (e)=>{
-  const menu = document.getElementById('acctMenu');
-  if(!menu.contains(e.target)) document.getElementById('acctDropdown').classList.remove('open');
-});
-document.getElementById('accountBtn').addEventListener('click', ()=>{
-  document.getElementById('acctDropdown').classList.remove('open');
+function openDrawer(){
+  document.getElementById('drawerLevels').classList.remove('showSub');
+  document.getElementById('drawerOverlay').classList.add('open');
+}
+function closeDrawer(){
+  document.getElementById('drawerOverlay').classList.remove('open');
+  document.getElementById('drawerLevels').classList.remove('showSub');
+}
+document.getElementById('hamburgerBtn').addEventListener('click', openDrawer);
+document.getElementById('drawerOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'drawerOverlay') closeDrawer();
 });
 
-// Hide the account menu whenever any sheet is open, since sheets have their own close button
-// in roughly the same corner and the two would otherwise overlap.
-(function(){
-  const acctMenu = document.getElementById('acctMenu');
-  const updateAcctMenuVisibility = ()=>{
-    const anyOpen = document.querySelector('.sheet-overlay.open');
-    acctMenu.style.display = anyOpen ? 'none' : 'block';
-  };
-  document.querySelectorAll('.sheet-overlay').forEach(overlay=>{
-    new MutationObserver(updateAcctMenuVisibility).observe(overlay, {attributes:true, attributeFilter:['class']});
+function scrollDrawerTargetIntoView(id){
+  const el = document.getElementById(id);
+  if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+}
+function expandCalendarDatingAndScroll(){
+  const block = document.getElementById('calPlacesBlock');
+  if(block) block.style.display = 'block';
+  scrollDrawerTargetIntoView('calPlacesBlock');
+}
+
+function drawerSubmenuFor(tab){
+  if(tab === 'tracker' && categories.length){
+    return categories.map(c=>({
+      label: c.label,
+      action: ()=>{ activeFilter = c.id; activeSubFilter = 'all'; render(); }
+    }));
+  }
+  if(tab === 'buylist' && buylistCategories.length){
+    return [{label:'All', action:()=>{ buylistActiveFilter = 'all'; renderBuylist(); }}]
+      .concat(buylistCategories.map(c=>({
+        label: c.name,
+        action: ()=>{ buylistActiveFilter = c.id; renderBuylist(); }
+      })));
+  }
+  if(tab === 'information'){
+    return PERMANENT_INFO_TILES.map(c=>({
+      label: c.name,
+      action: ()=> openInfoCatDetail(c.id)
+    }));
+  }
+  if(tab === 'calendar'){
+    return [
+      {label:'Dating', action: expandCalendarDatingAndScroll}
+    ];
+  }
+  return null;
+}
+
+function showDrawerSubmenu(tab, items){
+  const navBtn = document.querySelector(`.drawerNavItem[data-tab="${tab}"] span`);
+  document.getElementById('drawerSubTitle').textContent = navBtn ? navBtn.textContent : 'Menu';
+  const el = document.getElementById('drawerSubItems');
+  el.innerHTML = items.map((it,i)=>`<button class="drawerNavItem" data-i="${i}"><span>${escapeHtml(it.label)}</span></button>`).join('');
+  el.querySelectorAll('.drawerNavItem').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      items[Number(b.dataset.i)].action();
+      closeDrawer();
+    });
   });
-  updateAcctMenuVisibility();
-})();
+  document.getElementById('drawerLevels').classList.add('showSub');
+}
 
-document.getElementById('exportBtn').addEventListener('click', ()=>{ exportAllData(); document.getElementById('acctDropdown').classList.remove('open'); });
+document.getElementById('drawerBackBtn').addEventListener('click', ()=>{
+  document.getElementById('drawerLevels').classList.remove('showSub');
+});
+
+document.getElementById('drawerNavList').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.drawerNavItem');
+  if(!btn) return;
+  const tab = btn.dataset.tab;
+  switchTab(tab);
+  const submenu = drawerSubmenuFor(tab);
+  if(submenu && submenu.length){
+    showDrawerSubmenu(tab, submenu);
+  }else{
+    closeDrawer();
+  }
+});
+document.getElementById('accountBtn').addEventListener('click', closeDrawer);
+
+document.getElementById('exportBtn').addEventListener('click', ()=>{ exportAllData(); closeDrawer(); });
 
 document.getElementById('importBtn').addEventListener('click', ()=>{
-  document.getElementById('acctDropdown').classList.remove('open');
+  closeDrawer();
   document.getElementById('importFileInput').click();
 });
 document.getElementById('importFileInput').addEventListener('change', async (e)=>{
@@ -4277,28 +4413,27 @@ document.getElementById('recipeDetailOverlay').addEventListener('click', (e)=>{
 });
 
 document.getElementById('recipeAddMissingBtn').addEventListener('click', async ()=>{
-  const existingTitles = new Set(buylistItems.map(b=>(b.title||'').toLowerCase().trim()));
+  const existingTitles = new Set(groceryItems.map(g=>(g.name||'').toLowerCase().trim()));
   let addedCount = 0;
   currentRecipeMissingIngredients.forEach(ing=>{
-    const title = guessInvNameFromIngredientText(ing.text);
-    const key = title.toLowerCase().trim();
+    const name = guessInvNameFromIngredientText(ing.text);
+    const key = name.toLowerCase().trim();
     if(!key || existingTitles.has(key)) return;
     existingTitles.add(key);
-    buylistItems.push({
-      id: uid('b'),
-      title, price: '', url: '', notes: '',
-      image: null, categoryId: null,
+    groceryItems.push({
+      id: uid('gy'),
+      name, category: 'Pantry', amount: '', image: null,
       addedAt: Date.now()
     });
     addedCount++;
   });
   if(addedCount){
-    await saveBuylist();
-    renderBuylist();
+    await saveGroceries();
+    renderGroceriesList();
   }
   const btn = document.getElementById('recipeAddMissingBtn');
   const original = btn.textContent;
-  btn.textContent = addedCount ? `Added ${addedCount} to Buylist` : 'Already on your Buylist';
+  btn.textContent = addedCount ? `Added ${addedCount} to Groceries List` : 'Already on your Groceries List';
   setTimeout(()=>{ btn.textContent = original; }, 1800);
 });
 
@@ -4390,7 +4525,20 @@ function renderCalendarExpiring(now){
   const countEl = document.getElementById('calExpiringCount');
 
   const todayKey = todayDateKey(now);
-  const expiring = recipeInventory.filter(it=> it.expDate === todayKey);
+  const todayMidnight = new Date(todayKey + 'T00:00:00');
+  const EXPIRING_SOON_DAYS = 3;
+
+  const expiring = recipeInventory
+    .filter(it=>{
+      if(!it.expDate) return false;
+      const daysLeft = Math.round((new Date(it.expDate + 'T00:00:00') - todayMidnight) / 86400000);
+      return daysLeft <= EXPIRING_SOON_DAYS;
+    })
+    .map(it=>{
+      const daysLeft = Math.round((new Date(it.expDate + 'T00:00:00') - todayMidnight) / 86400000);
+      return {it, daysLeft};
+    })
+    .sort((a,b)=> a.daysLeft - b.daysLeft);
 
   if(!expiring.length){
     block.style.display = 'none';
@@ -4399,13 +4547,20 @@ function renderCalendarExpiring(now){
   block.style.display = 'block';
   countEl.textContent = String(expiring.length);
 
-  el.innerHTML = expiring.map(it => `
+  el.innerHTML = expiring.map(({it, daysLeft}) => {
+    let label, color;
+    if(daysLeft < 0){ label = 'Expired'; color = 'var(--rose)'; }
+    else if(daysLeft === 0){ label = 'Today'; color = 'var(--rose)'; }
+    else if(daysLeft === 1){ label = 'Tomorrow'; color = 'var(--amber)'; }
+    else{ label = `In ${daysLeft}d`; color = 'var(--amber)'; }
+    return `
     <div class="invRow" data-id="${it.id}" style="align-items:center;">
       ${it.image ? `<img src="${it.image}" alt="" style="width:44px; height:44px; border-radius:10px; object-fit:cover; flex:0 0 44px;">` : ''}
       <span class="invRow-name">${escapeHtml(it.name)}</span>
-      ${it.amount ? `<span class="invRow-amount">${escapeHtml(it.amount)}</span>` : ''}
+      <span class="invRow-amount" style="color:${color};">${label}</span>
     </div>
-  `).join('');
+  `;
+  }).join('');
   el.querySelectorAll('.invRow').forEach(row=>{
     row.addEventListener('click', ()=>{
       switchTab('tracker');
@@ -4505,14 +4660,11 @@ function renderCalendarPlaces(now){
   const el = document.getElementById('calendarPlacesList');
 
   const buildRow = (place, kind, rightLabel)=>{
-    const kindLabel = kind === 'dating' ? 'Dating' : 'Traveling';
-    const kindColor = kind === 'dating' ? '#b85c8f' : '#4a7ba6';
     return `
       <div class="invRow" data-id="${place.id}" data-kind="${kind}" style="align-items:center;">
         ${place.image ? `<img src="${place.image}" alt="" style="width:66px; height:66px; border-radius:12px; object-fit:cover; flex:0 0 66px;">` : ''}
         <div style="flex:1; min-width:0;">
           <div class="invRow-name">${escapeHtml(place.name)}</div>
-          <div style="font-family:'JetBrains Mono',monospace; font-size:10px; text-transform:uppercase; color:${kindColor};">${kindLabel}</div>
         </div>
         <span class="invRow-amount">${rightLabel}</span>
       </div>
@@ -4523,10 +4675,9 @@ function renderCalendarPlaces(now){
     const t = calendarSearchTerm.trim().toLowerCase();
     const matches = [];
     datingPlaces.forEach(p=>{ if((p.location||'').toLowerCase().includes(t)) matches.push({place:p, kind:'dating'}); });
-    travelPlaces.forEach(p=>{ if((p.location||'').toLowerCase().includes(t)) matches.push({place:p, kind:'traveling'}); });
 
     if(!matches.length){
-      el.innerHTML = `<div class="empty"><div class="big">No matches</div>No places have a location containing "${escapeHtml(calendarSearchTerm.trim())}".</div>`;
+      el.innerHTML = `<div class="empty"><div class="big">No matches</div>No dating places have a location containing "${escapeHtml(calendarSearchTerm.trim())}".</div>`;
       return;
     }
     let searchHtml = `<div class="invCatHead">Places matching "${escapeHtml(calendarSearchTerm.trim())}"</div>`;
@@ -4544,7 +4695,6 @@ function renderCalendarPlaces(now){
   // Open right now, based on structured hours
   const openNowEntries = [];
   datingPlaces.forEach(p=>{ if(isPlaceOpenNow(p)) openNowEntries.push({place:p, kind:'dating'}); });
-  travelPlaces.forEach(p=>{ if(isPlaceOpenNow(p)) openNowEntries.push({place:p, kind:'traveling'}); });
 
   // Scheduled today, based on planned date & time
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -4555,15 +4705,10 @@ function renderCalendarPlaces(now){
     const t = new Date(p.dateTime).getTime();
     if(!isNaN(t) && t >= startOfDay && t < endOfDay) scheduledEntries.push({place:p, kind:'dating', time:t});
   });
-  travelPlaces.forEach(p=>{
-    if(!p.dateTime) return;
-    const t = new Date(p.dateTime).getTime();
-    if(!isNaN(t) && t >= startOfDay && t < endOfDay) scheduledEntries.push({place:p, kind:'traveling', time:t});
-  });
   scheduledEntries.sort((a,b)=> a.time - b.time);
 
   if(!openNowEntries.length && !scheduledEntries.length){
-    el.innerHTML = `<div class="empty"><div class="big">Nothing right now</div>Add hours to a place to see what's open, or a date & time to see what's planned today.</div>`;
+    el.innerHTML = `<div class="empty"><div class="big">Nothing right now</div>Add hours to a dating place to see what's open, or a date & time to see what's planned today.</div>`;
     return;
   }
 
@@ -5408,7 +5553,11 @@ function switchTab(tab){
     b.classList.toggle('active', b.dataset.tab === tab);
   });
   fabBtn.style.display = (tab === 'tracker' || tab === 'roadmaps' || tab === 'buylist' || tab === 'savings') ? 'flex' : 'none';
-  if(tab === 'calendar') renderCalendar();
+  if(tab === 'calendar'){
+    const placesBlock = document.getElementById('calPlacesBlock');
+    if(placesBlock) placesBlock.style.display = 'none';
+    renderCalendar();
+  }
   try{ localStorage.setItem('tracker_active_tab', tab); }catch(e){}
 }
 
@@ -5416,6 +5565,7 @@ document.getElementById('calendarLocationSearch').addEventListener('input', (e)=
   calendarSearchTerm = e.target.value;
   renderCalendar();
 });
+
 
 document.getElementById('bottomNav').addEventListener('click', (e)=>{
   const btn = e.target.closest('.navBtn');
