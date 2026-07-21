@@ -904,6 +904,9 @@
   <div class="topbar">
     <h1>Calendar</h1>
     <div class="tagline" id="calendarTodayLabel">today</div>
+    <div class="search">
+      <input type="text" id="calendarLocationSearch" placeholder="Search by location (e.g. Houston)...">
+    </div>
   </div>
   <div class="list" id="calendarList"></div>
 </div>
@@ -3046,6 +3049,10 @@ function savePlacesFor(kind){ return kind === 'dating' ? saveDatingPlaces() : sa
 function openPlacesHome(kind){
   currentPlacesKind = kind;
   document.getElementById('placesHomeTitle').textContent = kind === 'dating' ? 'Dating' : 'Traveling';
+  const themeColor = kind === 'dating' ? '#b85c8f' : '#4a7ba6';
+  const addBtn = document.getElementById('placesAddBtn');
+  addBtn.style.background = `linear-gradient(180deg, ${themeColor}, ${themeColor}dd)`;
+  addBtn.style.borderColor = themeColor;
   renderPlacesList();
   blurActive();
   document.getElementById('placesHomeOverlay').classList.add('open');
@@ -3056,6 +3063,8 @@ document.getElementById('placesHomeClose').addEventListener('click', ()=>{
 document.getElementById('placesHomeOverlay').addEventListener('click', (e)=>{
   if(e.target.id === 'placesHomeOverlay') e.currentTarget.classList.remove('open');
 });
+
+let calendarSearchTerm = '';
 
 function renderCalendar(){
   const el = document.getElementById('calendarList');
@@ -3077,6 +3086,28 @@ function renderCalendar(){
       </div>
     `;
   };
+
+  if(calendarSearchTerm.trim()){
+    const t = calendarSearchTerm.trim().toLowerCase();
+    const matches = [];
+    datingPlaces.forEach(p=>{ if((p.location||'').toLowerCase().includes(t)) matches.push({place:p, kind:'dating'}); });
+    travelPlaces.forEach(p=>{ if((p.location||'').toLowerCase().includes(t)) matches.push({place:p, kind:'traveling'}); });
+
+    if(!matches.length){
+      el.innerHTML = `<div class="empty"><div class="big">No matches</div>No places have a location containing "${escapeHtml(calendarSearchTerm.trim())}".</div>`;
+      return;
+    }
+    let searchHtml = `<div class="invCatHead">Places matching "${escapeHtml(calendarSearchTerm.trim())}"</div>`;
+    searchHtml += matches.map(e=> buildRow(e.place, e.kind, isPlaceOpenNow(e.place) ? 'Open' : '')).join('');
+    el.innerHTML = searchHtml;
+    el.querySelectorAll('.invRow').forEach(row=>{
+      row.addEventListener('click', ()=>{
+        currentPlacesKind = row.dataset.kind;
+        openPlaceDetail(row.dataset.id);
+      });
+    });
+    return;
+  }
 
   // Open right now, based on structured hours
   const openNowEntries = [];
@@ -3934,6 +3965,11 @@ function switchTab(tab){
   fabBtn.style.display = (tab === 'tracker' || tab === 'roadmaps' || tab === 'buylist' || tab === 'savings') ? 'flex' : 'none';
   if(tab === 'calendar') renderCalendar();
 }
+
+document.getElementById('calendarLocationSearch').addEventListener('input', (e)=>{
+  calendarSearchTerm = e.target.value;
+  renderCalendar();
+});
 
 document.getElementById('bottomNav').addEventListener('click', (e)=>{
   const btn = e.target.closest('.navBtn');
