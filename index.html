@@ -163,8 +163,9 @@
   .calBlock-body .search{margin-bottom:12px;}
   .calBlock-body .invCatHead:first-child{margin-top:0;}
 
-  .habitRow{display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--line);}
+  .habitRow{display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); transition:background 0.15s ease;}
   .habitRow:last-child{border-bottom:none;}
+  .habitRow.done{background:rgba(74,153,80,0.08); border-radius:10px; padding-left:8px; padding-right:8px; margin:0 -8px;}
   .habitRow input[type=checkbox]{width:19px; height:19px; accent-color:var(--teal); flex:0 0 auto;}
   .habitRow-main{flex:1; min-width:0;}
   .habitRow-text{font-size:13.5px; font-weight:600; color:var(--ink);}
@@ -1301,16 +1302,18 @@
       <label>Goal name</label>
       <input type="text" id="gdTitle">
     </div>
-    <div class="field">
-      <label>Sub Tasks</label>
+    <div class="seg" id="gdSubTabs" style="margin-bottom:14px;">
+      <button type="button" data-v="tasks" class="sel">Sub Tasks</button>
+      <button type="button" data-v="habits">Habits</button>
+    </div>
+    <div class="field" id="gdTasksPane">
       <div id="gdTaskList"></div>
       <div class="mediaBtnRow">
         <input type="text" id="gdTaskInput" placeholder="Add a sub task...">
         <button type="button" class="mediaBtn" id="gdTaskAddBtn">Add</button>
       </div>
     </div>
-    <div class="field">
-      <label>Habits</label>
+    <div class="field" id="gdHabitsPane" style="display:none;">
       <div class="tagline" style="margin:-2px 0 8px;">Recurring habits show up on your Calendar tab</div>
       <div id="gdHabitList"></div>
       <input type="text" id="gdHabitInput" placeholder="Add a habit...">
@@ -2020,7 +2023,7 @@ let rewardItems = [];
 let rewardHistory = [];
 let editingRewardId = null;
 let rewardDraft = {title:'', cost:10, color: SWATCHES[0]};
-const POINTS = {TASK: 5, GOAL_BONUS: 20, CARD_BONUS: 100};
+const POINTS = {TASK: 5, HABIT: 3, GOAL_BONUS: 20, CARD_BONUS: 100};
 
 let buylistItems = [];
 let editingBuylistId = null;
@@ -2111,6 +2114,39 @@ function habitScheduledOn(habit, dow){
 }
 function habitDoneOn(habit, dateKey){
   return !!(habit.doneDates && habit.doneDates[dateKey]);
+}
+function habitStreak(habit){
+  let streak = 0;
+  let cursor = new Date();
+  let dow = cursor.getDay();
+  let key = todayDateKey(cursor);
+  if(habitScheduledOn(habit, dow) && !habitDoneOn(habit, key)){
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  for(let i=0; i<1000; i++){
+    dow = cursor.getDay();
+    key = todayDateKey(cursor);
+    if(habitScheduledOn(habit, dow)){
+      if(habitDoneOn(habit, key)){ streak++; cursor.setDate(cursor.getDate() - 1); }
+      else break;
+    }else{
+      cursor.setDate(cursor.getDate() - 1);
+    }
+  }
+  return streak;
+}
+function habitTotalCompletions(habit){
+  return Object.keys(habit.doneDates || {}).length;
+}
+function awardPointsForHabitToggle(card, newDone){
+  const delta = newDone ? POINTS.HABIT : -POINTS.HABIT;
+  rewardPoints = Math.max(0, rewardPoints + delta);
+  applyGlobalXP(delta);
+  const statIds = card.statIds || (card.statId ? [card.statId] : []);
+  statIds.forEach(id=>{
+    const stat = roadmapStats.find(s=>s.id === id);
+    if(stat) applyStatXP(stat, delta);
+  });
 }
 
 function catLabel(id){
@@ -3767,26 +3803,37 @@ function renderCalendarHabits(now){
     return;
   }
 
-  el.innerHTML = entries.map((e, i)=> `
-    <div class="habitRow" data-i="${i}">
+  el.innerHTML = entries.map((e, i)=> {
+    const streak = habitStreak(e.habit);
+    return `
+    <div class="habitRow ${e.done?'done':''}" data-i="${i}">
       <input type="checkbox" ${e.done?'checked':''}>
       <div class="habitRow-main">
         <div class="habitRow-text ${e.done?'done':''}">${escapeHtml(e.habit.text)}</div>
-        <div class="habitRow-meta">${escapeHtml(e.card.title)} \u2022 ${escapeHtml(e.goal.text)}</div>
+        <div class="habitRow-meta">${escapeHtml(e.card.title)} \u2022 ${escapeHtml(e.goal.text)}${streak>0 ? ` \u2022 \u{1F525} ${streak} day${streak===1?'':'s'}` : ''}</div>
       </div>
       ${e.habit.time ? `<span class="habitRow-time">${escapeHtml(e.habit.time)}</span>` : ''}
     </div>
-  `).join('');
+  `;
+  }).join('');
 
   el.querySelectorAll('.habitRow').forEach(row=>{
     const entry = entries[Number(row.dataset.i)];
     row.querySelector('input[type=checkbox]').addEventListener('change', async (e2)=>{
       entry.habit.doneDates = entry.habit.doneDates || {};
-      if(e2.target.checked) entry.habit.doneDates[dateKey] = true;
+      const newDone = e2.target.checked;
+      if(newDone) entry.habit.doneDates[dateKey] = true;
       else delete entry.habit.doneDates[dateKey];
+      awardPointsForHabitToggle(entry.card, newDone);
       entry.card.updatedAt = Date.now();
       renderCalendarHabits(now);
+      renderRewards();
+      renderLevelPlaque();
+      if(statusOverlay.classList.contains('open')) renderStatusWindow();
       await saveCards();
+      await saveRewards();
+      await saveLevel();
+      await saveStats();
     });
   });
 }
@@ -5345,10 +5392,20 @@ function openGoalDetail(cardId, goalId){
   currentCardId = cardId;
   currentGoalId = goalId;
   gdHabitSelectedDays = new Set();
+  document.querySelectorAll('#gdSubTabs button').forEach(b=> b.classList.toggle('sel', b.dataset.v==='tasks'));
+  document.getElementById('gdTasksPane').style.display = 'block';
+  document.getElementById('gdHabitsPane').style.display = 'none';
   renderGoalDetail();
   blurActive();
   goalDetailOverlay.classList.add('open');
 }
+document.getElementById('gdSubTabs').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  document.querySelectorAll('#gdSubTabs button').forEach(b=> b.classList.toggle('sel', b===btn));
+  document.getElementById('gdTasksPane').style.display = btn.dataset.v === 'tasks' ? 'block' : 'none';
+  document.getElementById('gdHabitsPane').style.display = btn.dataset.v === 'habits' ? 'block' : 'none';
+});
 
 function renderGoalDetail(){
   const card = cards.find(c=>c.id===currentCardId);
@@ -5414,15 +5471,20 @@ function renderGdHabitList(card, goal){
     el.innerHTML = `<div class="tagline" style="margin:4px 0 10px;">No habits yet — add one below.</div>`;
     return;
   }
-  el.innerHTML = habits.map(h => `
+  el.innerHTML = habits.map(h => {
+    const streak = habitStreak(h);
+    const total = habitTotalCompletions(h);
+    const streakBit = streak > 0 ? `\u{1F525} ${streak} day${streak===1?'':'s'}` : `${total} logged`;
+    return `
     <div class="habitEditRow" data-hid="${h.id}">
       <div class="habitEditRow-main">
         <div class="habitEditRow-text">${escapeHtml(h.text)}</div>
-        <div class="habitEditRow-meta">${escapeHtml(habitDaysLabel(h))}${h.time ? ' \u2022 ' + escapeHtml(h.time) : ''}</div>
+        <div class="habitEditRow-meta">${escapeHtml(habitDaysLabel(h))}${h.time ? ' \u2022 ' + escapeHtml(h.time) : ''} \u2022 ${streakBit}</div>
       </div>
       <button class="tdel">&times;</button>
     </div>
-  `).join('');
+  `;
+  }).join('');
   el.querySelectorAll('.habitEditRow').forEach(row=>{
     const hid = row.dataset.hid;
     row.querySelector('.tdel').addEventListener('click', async ()=>{
