@@ -1831,6 +1831,11 @@
       <div class="seg" id="invItemCategoryPicker"></div>
     </div>
     <div class="field">
+      <label>Quantity on hand (optional)</label>
+      <input type="number" id="invItemQty" inputmode="decimal" min="0" step="1" placeholder="e.g. 5">
+      <div class="tagline" style="margin:6px 0 0;">Lets recipes tell you if you have enough, not just whether you have any</div>
+    </div>
+    <div class="field">
       <label>Amount (optional)</label>
       <input type="text" id="invItemAmount" placeholder="e.g. 2 lbs, 1 jar">
     </div>
@@ -2706,7 +2711,7 @@ async function loadAll(){
   try{
     const res5d = await storageAdapter.get('tracker_inventory');
     recipeInventory = res5d && res5d.value ? JSON.parse(res5d.value) : [];
-    recipeInventory.forEach(it=>{ if(it.expDate === undefined) it.expDate = ''; });
+    recipeInventory.forEach(it=>{ if(it.expDate === undefined) it.expDate = ''; if(it.qty === undefined) it.qty = null; });
   }catch(e){
     recipeInventory = [];
   }
@@ -3058,7 +3063,7 @@ function renderInventoryList(){
           <span class="invRow-name">${escapeHtml(it.name)}</span>
           ${expBit}
         </div>
-        ${it.amount ? `<span class="invRow-amount">${escapeHtml(it.amount)}</span>` : ''}
+        ${(it.qty !== undefined && it.qty !== null) ? `<span class="invRow-amount">Qty ${it.qty}</span>` : (it.amount ? `<span class="invRow-amount">${escapeHtml(it.amount)}</span>` : '')}
       </div>
     `;
     }).join('');
@@ -3111,6 +3116,7 @@ function openInvItemAdd(){
   document.getElementById('invItemSheetTitle').textContent = 'Add Item';
   document.getElementById('invItemName').value = '';
   document.getElementById('invItemAmount').value = '';
+  document.getElementById('invItemQty').value = '';
   document.getElementById('invItemExpDate').value = '';
   document.getElementById('invItemSave').textContent = 'Add Item';
   document.getElementById('invItemDeleteRow').style.display = 'none';
@@ -3129,6 +3135,7 @@ function openInvItemEdit(id){
   document.getElementById('invItemSheetTitle').textContent = 'Edit Item';
   document.getElementById('invItemName').value = item.name;
   document.getElementById('invItemAmount').value = item.amount || '';
+  document.getElementById('invItemQty').value = (item.qty === undefined || item.qty === null) ? '' : item.qty;
   document.getElementById('invItemExpDate').value = item.expDate || '';
   document.getElementById('invItemSave').textContent = 'Save';
   document.getElementById('invItemDeleteRow').style.display = 'flex';
@@ -3154,6 +3161,8 @@ document.getElementById('invItemSave').addEventListener('click', async ()=>{
   if(!name){ document.getElementById('invItemName').focus(); return; }
   const amount = document.getElementById('invItemAmount').value.trim();
   const expDate = document.getElementById('invItemExpDate').value;
+  const qtyRaw = document.getElementById('invItemQty').value.trim();
+  const qty = qtyRaw === '' ? null : Math.max(0, Number(qtyRaw));
 
   let newItem = null;
   if(editingInvItemId){
@@ -3162,9 +3171,10 @@ document.getElementById('invItemSave').addEventListener('click', async ()=>{
     item.category = invItemDraft.category;
     item.amount = amount;
     item.expDate = expDate;
+    item.qty = qty;
     item.image = invItemDraft.image || null;
   }else{
-    newItem = {id: uid('inv'), name, category: invItemDraft.category, amount, expDate, image: invItemDraft.image || null};
+    newItem = {id: uid('inv'), name, category: invItemDraft.category, amount, expDate, qty, image: invItemDraft.image || null};
     recipeInventory.push(newItem);
   }
   await saveInventory();
@@ -3331,7 +3341,7 @@ async function markGroceryGotIt(id){
   await saveGroceries();
   renderGroceriesList();
 
-  const newItem = {id: uid('inv'), name: item.name, category: item.category, amount: item.amount || '', expDate: '', image: item.image || null};
+  const newItem = {id: uid('inv'), name: item.name, category: item.category, amount: item.amount || '', expDate: '', qty: null, image: item.image || null};
   recipeInventory.push(newItem);
   await saveInventory();
   renderInventoryList();
