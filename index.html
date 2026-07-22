@@ -616,7 +616,12 @@
   .recipeCard-title{font-size:15px; font-weight:600; color:var(--ink); flex:1;}
   .recipeCard-meta{font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); margin-top:2px;}
 
-  .ingRow{display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid var(--line);}
+  .ingRow{
+    display:flex; align-items:center; gap:8px; padding:10px 12px; margin-bottom:6px;
+    border:1.5px solid var(--line); border-radius:12px; background:linear-gradient(180deg, var(--card) 0%, var(--paper) 100%);
+    box-shadow:0 2px 6px rgba(28,30,38,0.06); transition:background 0.1s ease;
+  }
+  .ingRow:active{background:var(--paper-dim); transform:translateY(1px);}
   .ingRow-text{flex:1; font-size:13.5px;}
   .ingRow-badge{
     font-family:'JetBrains Mono',monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.3px;
@@ -677,6 +682,25 @@
     outline:none; min-height:44px; box-shadow:inset 0 2px 4px rgba(28,30,38,0.08);
   }
   .search input:focus{border-color:var(--amber);}
+
+  .trackerToolRow{display:flex; align-items:center; gap:8px; margin-top:10px;}
+  .iconToolBtn{
+    flex:0 0 auto; width:42px; height:42px; border-radius:13px; border:1.5px solid var(--ink);
+    background:var(--card); display:flex; align-items:center; justify-content:center; cursor:pointer;
+    color:var(--ink); box-shadow:0 2px 6px rgba(28,30,38,0.08); position:relative;
+  }
+  .iconToolBtn svg{width:19px; height:19px;}
+  .iconToolBtn.active{background:linear-gradient(180deg, #3a4256, var(--ink)); color:var(--paper); border-color:var(--ink);}
+  .iconToolBtn.active::after{
+    content:''; position:absolute; top:-3px; right:-3px; width:9px; height:9px; border-radius:50%;
+    background:var(--rose); border:1.5px solid var(--paper);
+  }
+  .trackerSearchInput{
+    flex:1; min-width:0; padding:11px 16px; border:1.5px solid var(--ink); border-radius:24px;
+    background:var(--card); font-family:'Inter',sans-serif; font-size:16px; color:var(--text);
+    outline:none; min-height:42px; box-shadow:inset 0 2px 4px rgba(28,30,38,0.08);
+  }
+  .trackerSearchInput:focus{border-color:var(--amber);}
 
   .filters{display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none;
     -webkit-overflow-scrolling:touch; scroll-snap-type:x proximity;}
@@ -765,7 +789,7 @@
     display:none; align-items:stretch;
   }
   .sheet-overlay.open{display:flex;}
-  #goalAddOverlay, #taskAddOverlay, #habitAddOverlay, #goalSettingsOverlay{z-index:42;}
+  #goalAddOverlay, #taskAddOverlay, #habitAddOverlay, #goalSettingsOverlay, #ingredientLinkOverlay, #groceryOverlay{z-index:42;}
   .sheet{
     background:var(--paper); width:100%; height:100dvh; max-height:100dvh; overflow-y:auto;
     -webkit-overflow-scrolling:touch;
@@ -1022,10 +1046,15 @@
 <div id="view-tracker" class="view">
   <div class="topbar">
     <h1>Tracker</h1>
-    <div class="search">
-      <input type="text" id="searchInput" placeholder="Search titles...">
+    <div class="trackerToolRow">
+      <button type="button" class="iconToolBtn" id="searchToggleBtn" title="Search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
+      <input type="text" id="searchInput" class="trackerSearchInput" placeholder="Search titles..." style="display:none;">
+      <button type="button" class="iconToolBtn" id="trackerFiltersBtn" title="Filters">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2" fill="var(--paper)"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="16" cy="12" r="2" fill="var(--paper)"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="11" cy="18" r="2" fill="var(--paper)"/></svg>
+      </button>
     </div>
-    <button type="button" class="mediaBtn" id="trackerFiltersBtn" style="margin-top:10px;">Filters</button>
   </div>
 
   <div class="filters" id="stats"></div>
@@ -1148,10 +1177,6 @@
       <button type="button" class="mediaBtn" id="trackerFiltersClearBtn">Clear Filters</button>
     </div>
     <div class="sheetDivider"></div>
-    <div class="field">
-      <label>Category</label>
-      <div class="filterOptGrid" id="filterCategoryChips"></div>
-    </div>
     <div class="field">
       <label>Status</label>
       <div class="filterOptGrid" id="filterStatusChips"></div>
@@ -5315,40 +5340,19 @@ let filterDraft = {category:'all', sub:'all'};
 
 function openTrackerFilters(){
   filterDraft = {category: activeFilter, sub: activeSubFilter};
-  renderFilterCategoryChips();
   renderFilterStatusChips();
   blurActive();
   document.getElementById('trackerFiltersOverlay').classList.add('open');
 }
 document.getElementById('trackerFiltersBtn').addEventListener('click', openTrackerFilters);
 
-function renderFilterCategoryChips(){
-  const el = document.getElementById('filterCategoryChips');
-  let html = `<button class="chip ${filterDraft.category==='all'?'active':''}" data-c="all">All</button>`;
-  html += categories.map(c => `
-    <button class="chip ${filterDraft.category===c.id?'active':''}" data-c="${c.id}">
-      <span class="dot" style="background:${c.color}"></span>${escapeHtml(c.label)}
-    </button>`).join('');
-  html += `<button class="chip addChip" id="chipAddTab">+ Tab</button>`;
-  el.innerHTML = html;
-  el.querySelectorAll('.chip[data-c]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      filterDraft.category = btn.dataset.c;
-      filterDraft.sub = 'all';
-      renderFilterCategoryChips();
-      renderFilterStatusChips();
-    });
-  });
-  document.getElementById('chipAddTab').addEventListener('click', openTagManager);
-}
-
 function renderFilterStatusChips(){
   const el = document.getElementById('filterStatusChips');
   const opts = [{id:'all', label:'All'}, {id:'coming_soon', label:'Coming Soon'}];
   if(isEpisodicCategory(filterDraft.category)){
-    opts.push({id:'in_progress', label:'Watching'}, {id:'completed', label:'Completed'});
+    opts.push({id:'in_progress', label:'Watching'});
   }else if(filterDraft.category === 'game'){
-    opts.push({id:'in_progress', label:'Playing'}, {id:'completed', label:'Completed'});
+    opts.push({id:'in_progress', label:'Playing'});
   }
   el.innerHTML = opts.map(o=>`<button class="chip ${filterDraft.sub===o.id?'active':''}" data-s="${o.id}">${o.label}</button>`).join('');
   el.querySelectorAll('.chip[data-s]').forEach(btn=>{
@@ -5360,8 +5364,7 @@ function renderFilterStatusChips(){
 }
 
 document.getElementById('trackerFiltersClearBtn').addEventListener('click', ()=>{
-  filterDraft = {category:'all', sub:'all'};
-  renderFilterCategoryChips();
+  filterDraft = {category: activeFilter, sub:'all'};
   renderFilterStatusChips();
 });
 
@@ -5376,8 +5379,9 @@ document.getElementById('trackerFiltersOverlay').addEventListener('click', (e)=>
 });
 
 function updateFiltersButtonLabel(){
-  const n = (activeFilter !== 'all' ? 1 : 0) + (activeSubFilter !== 'all' ? 1 : 0);
-  document.getElementById('trackerFiltersBtn').textContent = n > 0 ? `Filters (${n})` : 'Filters';
+  const btn = document.getElementById('trackerFiltersBtn');
+  if(!btn) return;
+  btn.classList.toggle('active', activeSubFilter !== 'all');
 }
 
 function itemMatchesSubFilter(i){
@@ -7720,6 +7724,21 @@ document.getElementById('btnDelete').addEventListener('click', async ()=>{
 document.getElementById('searchInput').addEventListener('input', (e)=>{
   searchTerm = e.target.value;
   render();
+});
+
+document.getElementById('searchToggleBtn').addEventListener('click', ()=>{
+  const input = document.getElementById('searchInput');
+  const btn = document.getElementById('searchToggleBtn');
+  const showing = input.style.display !== 'none';
+  if(showing){
+    input.style.display = 'none';
+    btn.classList.remove('active');
+    if(searchTerm){ searchTerm = ''; input.value = ''; render(); }
+  }else{
+    input.style.display = 'block';
+    btn.classList.add('active');
+    input.focus();
+  }
 });
 
 // ---- Tag management ----
