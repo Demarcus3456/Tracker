@@ -2558,10 +2558,19 @@ document.getElementById('drawerBackBtn').addEventListener('click', ()=>{
   document.getElementById('drawerLevels').classList.remove('showSub');
 });
 
+function closeAllSheetsAndExtras(){
+  document.querySelectorAll('.sheet-overlay.open').forEach(o=> o.classList.remove('open'));
+  ['cardGoalFab','gdTaskFab','gdHabitFab','recipeAddBtn','groceryAddBtn','invAddBtn'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.style.display = 'none';
+  });
+}
+
 document.getElementById('drawerNavList').addEventListener('click', (e)=>{
   const btn = e.target.closest('.drawerNavItem');
   if(!btn) return;
   const tab = btn.dataset.tab;
+  closeAllSheetsAndExtras();
   switchTab(tab);
   const submenu = drawerSubmenuFor(tab);
   if(submenu && submenu.length){
@@ -3342,6 +3351,42 @@ function guessInvNameFromIngredientText(text){
   t = t.replace(/\s+/g,' ').trim();
   t = t.replace(/\b\w/g, c=>c.toUpperCase());
   return t || text;
+}
+
+// Pull the leading quantity off an ingredient line, e.g. "3 garlic cloves (minced)" -> 3,
+// "1 1/2 lbs salmon" -> 1.5, "1/2 tsp salt" -> 0.5. Returns null if nothing parseable up front.
+function parseIngredientQuantity(text){
+  const t = (text||'').trim();
+  if(!t) return null;
+  const UNICODE_FRACTIONS = {'¼':0.25,'½':0.5,'¾':0.75,'⅓':1/3,'⅔':2/3,'⅛':0.125,'⅜':0.375,'⅝':0.625,'⅞':0.875};
+
+  let m = t.match(/^(\d+)\s+(\d+)\/(\d+)/);
+  if(m) return Number(m[1]) + (Number(m[2]) / Number(m[3]));
+
+  m = t.match(/^(\d+)\/(\d+)/);
+  if(m) return Number(m[1]) / Number(m[2]);
+
+  m = t.match(/^(\d+)\s*([¼½¾⅓⅔⅛⅜⅝⅞])/);
+  if(m) return Number(m[1]) + UNICODE_FRACTIONS[m[2]];
+
+  if(UNICODE_FRACTIONS[t.charAt(0)] !== undefined) return UNICODE_FRACTIONS[t.charAt(0)];
+
+  m = t.match(/^(\d+(\.\d+)?)/);
+  if(m) return Number(m[1]);
+
+  return null;
+}
+
+// For an ingredient linked to an inventory item with a known quantity on hand,
+// compares what's needed against what's available. Returns null when there isn't
+// enough information (no link, or no numeric quantity tracked) to make a comparison.
+function ingredientStockInfo(ing){
+  if(!ing || !ing.invItemId) return null;
+  const inv = recipeInventory.find(i=>i.id===ing.invItemId);
+  if(!inv || inv.qty === undefined || inv.qty === null) return null;
+  const needed = parseIngredientQuantity(ing.text);
+  if(needed === null) return null;
+  return {available: inv.qty, needed, low: inv.qty < needed};
 }
 
 function linkIngredientToInventory(recipeId, ingredientId, invItemId){
@@ -4324,12 +4369,17 @@ function openRecipeDetail(id){
     addMissingBtn.style.display = 'none';
     currentRecipeMissingIngredients = [];
   }else{
-    const missingIngredients = realIngredients.filter(ing=>!ingredientHave(ing));
+    const missingIngredients = realIngredients.filter(ing=>{
+      if(!ingredientHave(ing)) return true;
+      const stock = ingredientStockInfo(ing);
+      return stock && stock.low;
+    });
     currentRecipeMissingIngredients = missingIngredients;
+    const lowCount = missingIngredients.filter(ing=> ingredientHave(ing)).length;
+    const missingCount = missingIngredients.length - lowCount;
     const haveCount = realIngredients.length - missingIngredients.length;
-    const missingCount = missingIngredients.length;
-    addMissingBtn.style.display = missingCount ? 'block' : 'none';
-    const summary = `<div class="ingSummary"><span class="have">${haveCount} have</span><span class="missing">${missingCount} missing</span></div>`;
+    addMissingBtn.style.display = missingIngredients.length ? 'block' : 'none';
+    const summary = `<div class="ingSummary"><span class="have">${haveCount} have</span>${lowCount ? `<span class="missing" style="color:var(--amber);">${lowCount} low</span>` : ''}<span class="missing">${missingCount} missing</span></div>`;
 
     // Group sequentially by section header markers, preserving the recipe's own structure
     const groups = [];
@@ -4347,12 +4397,25 @@ function openRecipeDetail(id){
     const groupsHtml = groups.map(g=>{
       const rowsHtml = g.items.map(ing=>{
         const have = ingredientHave(ing);
-        const cls = have ? 'have' : 'missing';
+        const stock = ingredientStockInfo(ing);
+        let cls, badgeText, stockLine = '';
+        if(!have){
+          cls = 'missing'; badgeText = 'Missing';
+        }else if(stock && stock.low){
+          cls = 'missing'; badgeText = 'Low';
+          stockLine = `<div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--amber); margin-top:2px;">Have ${stock.available}, need ${stock.needed}</div>`;
+        }else{
+          cls = 'have'; badgeText = 'Have';
+          if(stock) stockLine = `<div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); margin-top:2px;">Have ${stock.available}, need ${stock.needed}</div>`;
+        }
         const linkedIcon = ing.invItemId ? '\u{1F517} ' : '';
         return `
         <div class="ingRow" data-rid="${r.id}" data-iid="${ing.id}" style="cursor:pointer;">
-          <span class="ingRow-text">${linkedIcon}${escapeHtml(ing.text)}</span>
-          <span class="ingRow-badge ${cls}">${have?'Have':'Missing'}</span>
+          <div style="flex:1; min-width:0;">
+            <span class="ingRow-text">${linkedIcon}${escapeHtml(ing.text)}</span>
+            ${stockLine}
+          </div>
+          <span class="ingRow-badge ${cls}" ${badgeText==='Low' ? 'style="color:var(--amber);"' : ''}>${badgeText}</span>
         </div>
       `;
       }).join('');
@@ -4420,9 +4483,11 @@ document.getElementById('recipeAddMissingBtn').addEventListener('click', async (
     const key = name.toLowerCase().trim();
     if(!key || existingTitles.has(key)) return;
     existingTitles.add(key);
+    const stock = ingredientStockInfo(ing);
+    const amount = (stock && stock.low) ? `Have ${stock.available}, need ${stock.needed}` : '';
     groceryItems.push({
       id: uid('gy'),
-      name, category: 'Pantry', amount: '', image: null,
+      name, category: 'Pantry', amount, image: null,
       addedAt: Date.now()
     });
     addedCount++;
