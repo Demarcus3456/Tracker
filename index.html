@@ -208,7 +208,8 @@
   #recipeOverlay{z-index:45;}
   #recipeDetailOverlay{z-index:44;}
   #recipeStepOverlay{z-index:46;}
-  #videoFullscreenOverlay{z-index:47;}
+  #ingredientLinkOverlay, #groceryOverlay{z-index:48;}
+  #videoFullscreenOverlay{z-index:49;}
 
   .iconGrid{display:flex; flex-wrap:wrap; gap:10px;}
   .iconBtn{
@@ -683,7 +684,9 @@
   }
   .search input:focus{border-color:var(--amber);}
 
-  .trackerToolRow{display:flex; align-items:center; gap:8px; margin-top:10px;}
+  .trackerTitleRow{display:flex; align-items:center; justify-content:space-between; gap:12px;}
+  .trackerTitleRow h1{margin:0;}
+  .trackerToolRow{display:flex; align-items:center; gap:8px; flex:0 0 auto;}
   .iconToolBtn{
     flex:0 0 auto; width:42px; height:42px; border-radius:13px; border:1.5px solid var(--ink);
     background:var(--card); display:flex; align-items:center; justify-content:center; cursor:pointer;
@@ -696,7 +699,8 @@
     background:var(--rose); border:1.5px solid var(--paper);
   }
   .trackerSearchInput{
-    flex:1; min-width:0; padding:11px 16px; border:1.5px solid var(--ink); border-radius:24px;
+    display:block; width:100%; box-sizing:border-box; margin-top:10px;
+    padding:11px 16px; border:1.5px solid var(--ink); border-radius:24px;
     background:var(--card); font-family:'Inter',sans-serif; font-size:16px; color:var(--text);
     outline:none; min-height:42px; box-shadow:inset 0 2px 4px rgba(28,30,38,0.08);
   }
@@ -789,7 +793,7 @@
     display:none; align-items:stretch;
   }
   .sheet-overlay.open{display:flex;}
-  #goalAddOverlay, #taskAddOverlay, #habitAddOverlay, #goalSettingsOverlay, #ingredientLinkOverlay, #groceryOverlay{z-index:42;}
+  #goalAddOverlay, #taskAddOverlay, #habitAddOverlay, #goalSettingsOverlay{z-index:42;}
   .sheet{
     background:var(--paper); width:100%; height:100dvh; max-height:100dvh; overflow-y:auto;
     -webkit-overflow-scrolling:touch;
@@ -1045,19 +1049,21 @@
 
 <div id="view-tracker" class="view">
   <div class="topbar">
-    <h1>Tracker</h1>
-    <div class="trackerToolRow">
-      <button type="button" class="iconToolBtn" id="searchToggleBtn" title="Search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      </button>
-      <input type="text" id="searchInput" class="trackerSearchInput" placeholder="Search titles..." style="display:none;">
-      <button type="button" class="iconToolBtn" id="trackerFiltersBtn" title="Filters">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2" fill="var(--paper)"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="16" cy="12" r="2" fill="var(--paper)"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="11" cy="18" r="2" fill="var(--paper)"/></svg>
-      </button>
+    <div class="trackerTitleRow">
+      <h1>Tracker</h1>
+      <div class="trackerToolRow">
+        <button type="button" class="iconToolBtn" id="searchToggleBtn" title="Search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
+        <button type="button" class="iconToolBtn" id="trackerFiltersBtn" title="Filters">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2" fill="var(--paper)"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="16" cy="12" r="2" fill="var(--paper)"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="11" cy="18" r="2" fill="var(--paper)"/></svg>
+        </button>
+      </div>
     </div>
+    <input type="text" id="searchInput" class="trackerSearchInput" placeholder="Search titles..." style="display:none;">
   </div>
 
-  <div class="filters" id="stats"></div>
+  <div class="filters" id="stats" style="display:none;"></div>
   <div class="list" id="list"><div class="loading">Opening your tracker…</div></div>
 </div>
 
@@ -1131,7 +1137,7 @@
   <div class="topbar">
     <h1>Buylist</h1>
     <div class="tagline">things you're thinking about buying</div>
-    <div class="filters" id="buylistCatFilters"></div>
+    <div class="filters" id="buylistCatFilters" style="display:none;"></div>
   </div>
   <div class="list" id="buylistList"><div class="loading">Opening your buylist…</div></div>
 </div>
@@ -2204,6 +2210,7 @@ async function pushAllToCloud(){
       infoCategories,
       inventory: recipeInventory,
       groceries: groceryItems,
+      ingredientLinkMemory,
       recipes,
       datingPlaces,
       travelPlaces,
@@ -2234,6 +2241,7 @@ async function pullFromCloud(){
       if(data.infoCategories) infoCategories = data.infoCategories;
       if(data.inventory) recipeInventory = data.inventory;
       if(data.groceries) groceryItems = data.groceries;
+      if(data.ingredientLinkMemory) ingredientLinkMemory = data.ingredientLinkMemory;
       if(data.recipes) recipes = data.recipes;
       if(data.datingPlaces) datingPlaces = data.datingPlaces;
       if(data.travelPlaces) travelPlaces = data.travelPlaces;
@@ -2243,7 +2251,7 @@ async function pullFromCloud(){
         roadmapXP = data.level.xp || 0;
       }
       if(data.stats && data.stats.length) roadmapStats = data.stats;
-      await saveItems(); await saveCategories(); await saveCards(); await saveRewards(); await saveBuylist(); await saveBuylistCats(); await saveInfoCats(); await saveInventory(); await saveGroceries(); await saveRecipes(); await saveDatingPlaces(); await saveTravelPlaces(); await saveSavings(); await saveLevel(); await saveStats();
+      await saveItems(); await saveCategories(); await saveCards(); await saveRewards(); await saveBuylist(); await saveBuylistCats(); await saveInfoCats(); await saveInventory(); await saveGroceries(); await saveIngredientLinkMemory(); await saveRecipes(); await saveDatingPlaces(); await saveTravelPlaces(); await saveSavings(); await saveLevel(); await saveStats();
       render(); renderGoals(); renderLevelPlaque(); renderRewards(); renderBuylist(); renderSavings(); renderInfoGrid();
     }else{
       await pushAllToCloud();
@@ -2346,6 +2354,7 @@ let infoCatDraft = {name:'', color: SWATCHES[0], icon:''};
 const INV_CATEGORIES = ['Seasonings','Meats','Pantry','Produce','Dairy','Other'];
 let recipeInventory = [];
 let groceryItems = [];
+let ingredientLinkMemory = {};
 let editingInvItemId = null;
 let invItemDraft = {name:'', category:'Pantry', amount:'', image:null};
 let editingGroceryId = null;
@@ -2501,6 +2510,7 @@ function exportAllData(){
     infoCategories,
     inventory: recipeInventory,
     groceries: groceryItems,
+    ingredientLinkMemory,
     recipes,
     datingPlaces,
     travelPlaces,
@@ -2522,6 +2532,10 @@ function exportAllData(){
 function openDrawer(){
   document.getElementById('drawerLevels').classList.remove('showSub');
   document.getElementById('drawerOverlay').classList.add('open');
+  const submenu = drawerSubmenuFor(currentTab);
+  if(submenu && submenu.length){
+    showDrawerSubmenu(currentTab, submenu);
+  }
 }
 function closeDrawer(){
   document.getElementById('drawerOverlay').classList.remove('open');
@@ -2550,11 +2564,10 @@ function drawerSubmenuFor(tab){
     }));
   }
   if(tab === 'buylist' && buylistCategories.length){
-    return [{label:'All', action:()=>{ buylistActiveFilter = 'all'; renderBuylist(); }}]
-      .concat(buylistCategories.map(c=>({
-        label: c.name,
-        action: ()=>{ buylistActiveFilter = c.id; renderBuylist(); }
-      })));
+    return buylistCategories.map(c=>({
+      label: c.name,
+      action: ()=>{ buylistActiveFilter = c.id; renderBuylist(); }
+    }));
   }
   if(tab === 'information'){
     return PERMANENT_INFO_TILES.map(c=>({
@@ -2639,6 +2652,7 @@ document.getElementById('importFileInput').addEventListener('change', async (e)=
     if(data.infoCategories) infoCategories = data.infoCategories;
     if(data.inventory) recipeInventory = data.inventory;
     if(data.groceries) groceryItems = data.groceries;
+    if(data.ingredientLinkMemory) ingredientLinkMemory = data.ingredientLinkMemory;
     if(data.recipes) recipes = data.recipes;
     if(data.datingPlaces) datingPlaces = data.datingPlaces;
     if(data.travelPlaces) travelPlaces = data.travelPlaces;
@@ -2651,7 +2665,7 @@ document.getElementById('importFileInput').addEventListener('change', async (e)=
 
     await saveItems(); await saveCategories(); await saveCards(); await saveRewards();
     await saveBuylist(); await saveBuylistCats(); await saveInfoCats();
-    await saveInventory(); await saveGroceries(); await saveRecipes(); await saveDatingPlaces(); await saveTravelPlaces();
+    await saveInventory(); await saveGroceries(); await saveIngredientLinkMemory(); await saveRecipes(); await saveDatingPlaces(); await saveTravelPlaces();
     await saveSavings(); await saveLevel(); await saveStats();
 
     render(); renderGoals(); renderLevelPlaque(); renderRewards(); renderBuylist(); renderSavings(); renderInfoGrid();
@@ -2747,6 +2761,12 @@ async function loadAll(){
     groceryItems = [];
   }
   try{
+    const res5d3 = await storageAdapter.get('tracker_ing_link_memory');
+    ingredientLinkMemory = res5d3 && res5d3.value ? JSON.parse(res5d3.value) : {};
+  }catch(e){
+    ingredientLinkMemory = {};
+  }
+  try{
     const res5e = await storageAdapter.get('tracker_recipes');
     recipes = res5e && res5e.value ? JSON.parse(res5e.value) : [];
     recipes.forEach(r=>{ if(!r.ingredients) r.ingredients = []; });
@@ -2807,6 +2827,11 @@ async function loadAll(){
   renderSavings();
   renderInfoGrid();
   maybeAutoExport();
+  try{
+    let anyLinked = false;
+    recipes.forEach(r=>{ if(applyIngredientLinkMemory(r)) anyLinked = true; });
+    if(anyLinked) saveRecipes();
+  }catch(e){}
   try{
     const savedTab = localStorage.getItem('tracker_active_tab');
     if(savedTab && document.getElementById('view-' + savedTab)) switchTab(savedTab);
@@ -2914,6 +2939,14 @@ async function saveInventory(){
 async function saveGroceries(){
   try{
     await storageAdapter.set('tracker_groceries', JSON.stringify(groceryItems));
+  }catch(e){
+    console.error('Save failed', e);
+  }
+  if(fbUser) pushAllToCloud();
+}
+async function saveIngredientLinkMemory(){
+  try{
+    await storageAdapter.set('tracker_ing_link_memory', JSON.stringify(ingredientLinkMemory));
   }catch(e){
     console.error('Save failed', e);
   }
@@ -3424,6 +3457,10 @@ function ingredientStockInfo(ing){
   return {available: inv.qty, needed, low: inv.qty < needed};
 }
 
+function ingredientMemoryKey(text){
+  return guessInvNameFromIngredientText(text).toLowerCase().trim();
+}
+
 function linkIngredientToInventory(recipeId, ingredientId, invItemId){
   const r = recipes.find(x=>x.id===recipeId);
   if(!r) return;
@@ -3431,9 +3468,38 @@ function linkIngredientToInventory(recipeId, ingredientId, invItemId){
   if(!ing) return;
   ing.invItemId = invItemId || null;
   saveRecipes();
+
+  const key = ingredientMemoryKey(ing.text);
+  if(key){
+    if(invItemId){
+      ingredientLinkMemory[key] = invItemId;
+    }else if(ingredientLinkMemory[key]){
+      delete ingredientLinkMemory[key];
+    }
+    saveIngredientLinkMemory();
+  }
+
   if(currentRecipeId === recipeId && document.getElementById('recipeDetailOverlay').classList.contains('open')){
     openRecipeDetail(recipeId);
   }
+}
+
+// Applies previously-learned ingredient->inventory links to any ingredient in this
+// recipe that isn't linked yet, so linking one ingredient once helps every recipe
+// that mentions it from then on. Returns true if anything changed.
+function applyIngredientLinkMemory(r){
+  if(!r || !r.ingredients) return false;
+  let changed = false;
+  r.ingredients.forEach(ing=>{
+    if(ing.isHeader || ing.invItemId) return;
+    const key = ingredientMemoryKey(ing.text);
+    const invId = key && ingredientLinkMemory[key];
+    if(invId && recipeInventory.some(inv=>inv.id===invId)){
+      ing.invItemId = invId;
+      changed = true;
+    }
+  });
+  return changed;
 }
 
 function openIngredientLink(recipeId, ingredientId){
@@ -4385,6 +4451,7 @@ function openRecipeDetail(id){
   const r = recipes.find(x=>x.id===id);
   if(!r) return;
   currentRecipeId = id;
+  if(applyIngredientLinkMemory(r)) saveRecipes();
   const banner = document.getElementById('recipeDetailBanner');
   banner.innerHTML = `
     <div class="cdBanner-thumb" style="background:var(--paper-dim);">${r.image ? `<img src="${r.image}" alt="">` : `<span class="placeholderLetter">${escapeHtml((r.title||'?').charAt(0).toUpperCase())}</span>`}</div>
@@ -5344,7 +5411,6 @@ function openTrackerFilters(){
   blurActive();
   document.getElementById('trackerFiltersOverlay').classList.add('open');
 }
-document.getElementById('trackerFiltersBtn').addEventListener('click', openTrackerFilters);
 
 function renderFilterStatusChips(){
   const el = document.getElementById('filterStatusChips');
