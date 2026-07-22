@@ -1027,7 +1027,7 @@
     <div class="drawerLevels" id="drawerLevels">
       <div class="drawerLevel drawerLevel-main" id="drawerLevelMain">
         <div class="drawerNavList" id="drawerNavList">
-          <button class="navBtn drawerNavItem active" data-tab="tracker">
+          <button class="navBtn drawerNavItem" data-tab="tracker">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
             <span>Tracker</span>
           </button>
@@ -1039,6 +1039,10 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>
             <span>Buylist</span>
           </button>
+          <button class="navBtn drawerNavItem" data-tab="todo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 12l2.5 2.5L16 9"/></svg>
+            <span>To Do</span>
+          </button>
           <button class="navBtn drawerNavItem" data-tab="information">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16" stroke-linecap="round"/><circle cx="12" cy="7.5" r="0.9" fill="currentColor" stroke="none"/></svg>
             <span>Information</span>
@@ -1047,7 +1051,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.4c0-1.1 1.1-2 2.5-2s2.5.75 2.5 1.8c0 2.3-5 1.3-5 3.7 0 1.1 1.1 2 2.5 2s2.5-.9 2.5-2"/></svg>
             <span>Savings</span>
           </button>
-          <button class="navBtn drawerNavItem" data-tab="calendar">
+          <button class="navBtn drawerNavItem active" data-tab="calendar">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg>
             <span>Calendar</span>
           </button>
@@ -1071,7 +1075,7 @@
   </div>
 </div>
 
-<div id="view-tracker" class="view">
+<div id="view-tracker" class="view" style="display:none;">
   <div class="topbar">
     <div class="trackerTitleRow">
       <h1>Tracker</h1>
@@ -1123,7 +1127,7 @@
   </div>
 </div>
 
-<div id="view-calendar" class="view" style="display:none;">
+<div id="view-calendar" class="view">
   <div class="topbar">
     <h1>Calendar</h1>
     <div class="tagline" id="calendarTodayLabel">today</div>
@@ -1164,6 +1168,14 @@
     <div class="filters" id="buylistCatFilters" style="display:none;"></div>
   </div>
   <div class="list" id="buylistList"><div class="loading">Opening your buylist…</div></div>
+</div>
+
+<div id="view-todo" class="view" style="display:none;">
+  <div class="topbar">
+    <h1>To Do</h1>
+    <div class="tagline">things you need to get done</div>
+  </div>
+  <div class="list" id="todoList"><div class="loading">Opening your to do list…</div></div>
 </div>
 
 <button class="fab" id="fabAdd">+</button>
@@ -1644,6 +1656,31 @@
     </div>
     <div class="sheet-actions" id="bDeleteRow" style="display:none;">
       <button class="btn-delete" id="bBtnDelete">Delete Item</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet-overlay" id="todoOverlay">
+  <div class="sheet">
+    <button class="sheetClose" id="todoCloseBtn">&times;</button>
+    <h2 id="todoSheetTitle">Add To Do</h2>
+    <div class="field">
+      <label>Task</label>
+      <input type="text" id="todoText" placeholder="e.g. Call the dentist">
+    </div>
+    <div class="field">
+      <label>Due Date (optional)</label>
+      <input type="date" id="todoDueDate">
+    </div>
+    <div class="field">
+      <label>Notes (optional)</label>
+      <textarea id="todoNotes" placeholder="Details..."></textarea>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-save" id="todoSave">Add</button>
+    </div>
+    <div class="sheet-actions" id="todoDeleteRow" style="display:none;">
+      <button class="btn-delete" id="todoDelete">Delete</button>
     </div>
   </div>
 </div>
@@ -2331,7 +2368,7 @@ async function pushAllToCloud(){
       inventory: recipeInventory,
       groceries: groceryItems,
       ingredientLinkMemory,
-      bodyWorkouts, bodyExercises, bodyRoutines, bodyInventory,
+      bodyWorkouts, bodyExercises, bodyRoutines, bodyInventory, todoItems,
       recipes,
       datingPlaces,
       travelPlaces,
@@ -2367,6 +2404,7 @@ async function pullFromCloud(){
       if(data.bodyExercises) bodyExercises = data.bodyExercises;
       if(data.bodyRoutines) bodyRoutines = data.bodyRoutines;
       if(data.bodyInventory) bodyInventory = data.bodyInventory;
+      if(data.todoItems) todoItems = data.todoItems;
       if(data.recipes) recipes = data.recipes;
       if(data.datingPlaces) datingPlaces = data.datingPlaces;
       if(data.travelPlaces) travelPlaces = data.travelPlaces;
@@ -2376,7 +2414,7 @@ async function pullFromCloud(){
         roadmapXP = data.level.xp || 0;
       }
       if(data.stats && data.stats.length) roadmapStats = data.stats;
-      await saveItems(); await saveCategories(); await saveCards(); await saveRewards(); await saveBuylist(); await saveBuylistCats(); await saveInfoCats(); await saveInventory(); await saveGroceries(); await saveIngredientLinkMemory(); await saveBodyWorkouts(); await saveBodyExercises(); await saveBodyRoutines(); await saveBodyInventory(); await saveRecipes(); await saveDatingPlaces(); await saveTravelPlaces(); await saveSavings(); await saveLevel(); await saveStats();
+      await saveItems(); await saveCategories(); await saveCards(); await saveRewards(); await saveBuylist(); await saveBuylistCats(); await saveInfoCats(); await saveInventory(); await saveGroceries(); await saveIngredientLinkMemory(); await saveBodyWorkouts(); await saveBodyExercises(); await saveBodyRoutines(); await saveBodyInventory(); await saveTodo(); await saveRecipes(); await saveDatingPlaces(); await saveTravelPlaces(); await saveSavings(); await saveLevel(); await saveStats();
       render(); renderGoals(); renderLevelPlaque(); renderRewards(); renderBuylist(); renderSavings(); renderInfoGrid();
     }else{
       await pushAllToCloud();
@@ -2482,6 +2520,8 @@ let groceryItems = [];
 let ingredientLinkMemory = {};
 let bodyWorkouts = [];
 let bodyExercises = [];
+let todoItems = [];
+let editingTodoId = null;
 let bodyRoutines = [];
 let bodyInventory = [];
 let editingInvItemId = null;
@@ -2640,7 +2680,7 @@ function exportAllData(){
     inventory: recipeInventory,
     groceries: groceryItems,
     ingredientLinkMemory,
-    bodyWorkouts, bodyExercises, bodyRoutines, bodyInventory,
+    bodyWorkouts, bodyExercises, bodyRoutines, bodyInventory, todoItems,
     recipes,
     datingPlaces,
     travelPlaces,
@@ -2795,6 +2835,7 @@ document.getElementById('importFileInput').addEventListener('change', async (e)=
     if(data.bodyExercises) bodyExercises = data.bodyExercises;
     if(data.bodyRoutines) bodyRoutines = data.bodyRoutines;
     if(data.bodyInventory) bodyInventory = data.bodyInventory;
+    if(data.todoItems) todoItems = data.todoItems;
     if(data.recipes) recipes = data.recipes;
     if(data.datingPlaces) datingPlaces = data.datingPlaces;
     if(data.travelPlaces) travelPlaces = data.travelPlaces;
@@ -2807,7 +2848,7 @@ document.getElementById('importFileInput').addEventListener('change', async (e)=
 
     await saveItems(); await saveCategories(); await saveCards(); await saveRewards();
     await saveBuylist(); await saveBuylistCats(); await saveInfoCats();
-    await saveInventory(); await saveGroceries(); await saveIngredientLinkMemory(); await saveBodyWorkouts(); await saveBodyExercises(); await saveBodyRoutines(); await saveBodyInventory(); await saveRecipes(); await saveDatingPlaces(); await saveTravelPlaces();
+    await saveInventory(); await saveGroceries(); await saveIngredientLinkMemory(); await saveBodyWorkouts(); await saveBodyExercises(); await saveBodyRoutines(); await saveBodyInventory(); await saveTodo(); await saveRecipes(); await saveDatingPlaces(); await saveTravelPlaces();
     await saveSavings(); await saveLevel(); await saveStats();
 
     render(); renderGoals(); renderLevelPlaque(); renderRewards(); renderBuylist(); renderSavings(); renderInfoGrid();
@@ -2921,6 +2962,12 @@ async function loadAll(){
     bodyExercises = [];
   }
   try{
+    const res5g = await storageAdapter.get('tracker_todo');
+    todoItems = res5g && res5g.value ? JSON.parse(res5g.value) : [];
+  }catch(e){
+    todoItems = [];
+  }
+  try{
     const res5f2 = await storageAdapter.get('tracker_body_routines');
     bodyRoutines = res5f2 && res5f2.value ? JSON.parse(res5f2.value) : [];
   }catch(e){
@@ -3013,10 +3060,7 @@ async function loadAll(){
     recipes.forEach(r=>{ if(applyIngredientLinkMemory(r)) anyLinked = true; });
     if(anyLinked) saveRecipes();
   }catch(e){}
-  try{
-    const savedTab = localStorage.getItem('tracker_active_tab');
-    if(savedTab && document.getElementById('view-' + savedTab)) switchTab(savedTab);
-  }catch(e){}
+  switchTab('calendar');
 }
 
 function maybeAutoExport(){
@@ -3140,6 +3184,11 @@ async function saveBodyWorkouts(){
 }
 async function saveBodyExercises(){
   try{ await storageAdapter.set('tracker_body_exercises', JSON.stringify(bodyExercises)); }
+  catch(e){ console.error('Save failed', e); }
+  if(fbUser) pushAllToCloud();
+}
+async function saveTodo(){
+  try{ await storageAdapter.set('tracker_todo', JSON.stringify(todoItems)); }
   catch(e){ console.error('Save failed', e); }
   if(fbUser) pushAllToCloud();
 }
@@ -3649,6 +3698,99 @@ function renderExercisePicker(query){
   });
 }
 document.getElementById('bepSearch').addEventListener('input', (e)=> renderExercisePicker(e.target.value));
+
+// ---- To Do list ----
+function renderTodo(){
+  const el = document.getElementById('todoList');
+  if(!el) return;
+  if(!todoItems.length){
+    el.innerHTML = `<div class="empty"><div class="big">Nothing on your list</div>Tap + to add something you need to get done.</div>`;
+    return;
+  }
+  const sorted = todoItems.slice().sort((a,b)=>{
+    if(!!a.done !== !!b.done) return a.done ? 1 : -1;
+    if(a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
+    if(a.dueDate) return -1;
+    if(b.dueDate) return 1;
+    return (b.addedAt||0) - (a.addedAt||0);
+  });
+  el.innerHTML = sorted.map(t => `
+    <div class="taskRow" data-id="${t.id}">
+      <input type="checkbox" class="todoCheck" ${t.done?'checked':''}>
+      <span class="ttext ${t.done?'done':''}">${escapeHtml(t.text)}${t.dueDate ? ` <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim);">\u2022 ${escapeHtml(t.dueDate)}</span>` : ''}</span>
+    </div>
+  `).join('');
+  el.querySelectorAll('.todoCheck').forEach(box=>{
+    box.addEventListener('click', e=> e.stopPropagation());
+    box.addEventListener('change', async (e)=>{
+      const row = e.target.closest('.taskRow');
+      const t = todoItems.find(x=>x.id===row.dataset.id);
+      if(!t) return;
+      t.done = e.target.checked;
+      await saveTodo();
+      renderTodo();
+    });
+  });
+  el.querySelectorAll('.taskRow').forEach(row=>{
+    row.addEventListener('click', (e)=>{
+      if(e.target.classList.contains('todoCheck')) return;
+      openTodoEdit(row.dataset.id);
+    });
+  });
+}
+
+function openTodoAdd(){
+  editingTodoId = null;
+  document.getElementById('todoSheetTitle').textContent = 'Add To Do';
+  document.getElementById('todoText').value = '';
+  document.getElementById('todoDueDate').value = '';
+  document.getElementById('todoNotes').value = '';
+  document.getElementById('todoSave').textContent = 'Add';
+  document.getElementById('todoDeleteRow').style.display = 'none';
+  blurActive();
+  document.getElementById('todoOverlay').classList.add('open');
+}
+function openTodoEdit(id){
+  const t = todoItems.find(x=>x.id===id);
+  if(!t) return;
+  editingTodoId = id;
+  document.getElementById('todoSheetTitle').textContent = 'Edit To Do';
+  document.getElementById('todoText').value = t.text;
+  document.getElementById('todoDueDate').value = t.dueDate || '';
+  document.getElementById('todoNotes').value = t.notes || '';
+  document.getElementById('todoSave').textContent = 'Save';
+  document.getElementById('todoDeleteRow').style.display = 'flex';
+  blurActive();
+  document.getElementById('todoOverlay').classList.add('open');
+}
+document.getElementById('todoCloseBtn').addEventListener('click', ()=>{
+  document.getElementById('todoOverlay').classList.remove('open');
+});
+document.getElementById('todoOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'todoOverlay') e.currentTarget.classList.remove('open');
+});
+document.getElementById('todoSave').addEventListener('click', async ()=>{
+  const text = document.getElementById('todoText').value.trim();
+  if(!text){ document.getElementById('todoText').focus(); return; }
+  const dueDate = document.getElementById('todoDueDate').value;
+  const notes = document.getElementById('todoNotes').value.trim();
+  if(editingTodoId){
+    const t = todoItems.find(x=>x.id===editingTodoId);
+    t.text = text; t.dueDate = dueDate; t.notes = notes;
+  }else{
+    todoItems.push({id: uid('td'), text, dueDate, notes, done:false, addedAt: Date.now()});
+  }
+  await saveTodo();
+  document.getElementById('todoOverlay').classList.remove('open');
+  renderTodo();
+});
+document.getElementById('todoDelete').addEventListener('click', async ()=>{
+  if(!editingTodoId) return;
+  todoItems = todoItems.filter(x=>x.id!==editingTodoId);
+  await saveTodo();
+  document.getElementById('todoOverlay').classList.remove('open');
+  renderTodo();
+});
 
 
 function normalizeIngredientWord(w){
@@ -6349,12 +6491,13 @@ function switchTab(tab){
   document.querySelectorAll('.navBtn').forEach(b=>{
     b.classList.toggle('active', b.dataset.tab === tab);
   });
-  fabBtn.style.display = (tab === 'tracker' || tab === 'roadmaps' || tab === 'buylist') ? 'flex' : 'none';
+  fabBtn.style.display = (tab === 'tracker' || tab === 'roadmaps' || tab === 'buylist' || tab === 'todo') ? 'flex' : 'none';
   if(tab === 'calendar'){
     const placesBlock = document.getElementById('calPlacesBlock');
     if(placesBlock) placesBlock.style.display = 'none';
     renderCalendar();
   }
+  if(tab === 'todo') renderTodo();
   try{ localStorage.setItem('tracker_active_tab', tab); }catch(e){}
 }
 
@@ -8378,6 +8521,7 @@ document.getElementById('fabAdd').addEventListener('click', ()=>{
   if(currentTab === 'roadmaps') openCardAdd();
   else if(currentTab === 'rewards') openRewardAdd();
   else if(currentTab === 'buylist') openBuylistAdd();
+  else if(currentTab === 'todo') openTodoAdd();
   else openAdd();
 });
 document.getElementById('btnCancel').addEventListener('click', ()=> overlay.classList.remove('open'));
