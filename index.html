@@ -806,6 +806,7 @@
   @keyframes slideup{from{opacity:0;} to{opacity:1;}}
   .sheet h2{
     font-family:'Barlow Condensed',sans-serif; text-transform:uppercase; font-size:22px; margin:0 0 14px;
+    padding-left:44px;
   }
   .sheetClose{
     position:absolute; top:calc(20px + env(safe-area-inset-top)); right:16px; width:34px; height:34px; border-radius:50%;
@@ -1941,12 +1942,8 @@
   <div class="sheet">
     <button class="sheetClose" id="bodyHomeClose">&times;</button>
     <h2>Body</h2>
-    <div class="seg" id="bodySubTabs">
-      <button type="button" data-v="workouts" class="sel">Workouts</button>
-      <button type="button" data-v="routines">Self Care Routines</button>
-      <button type="button" data-v="inventory">Self Care Inventory</button>
-    </div>
-    <div id="bodyWorkoutsView" style="margin-top:18px;">
+    <div class="tagline" id="bodySectionLabel" style="margin:-10px 0 18px;">Workouts</div>
+    <div id="bodyWorkoutsView">
       <div id="bodyWorkoutsList"></div>
     </div>
     <div id="bodyRoutinesView" style="display:none; margin-top:18px;">
@@ -2621,6 +2618,13 @@ function expandCalendarDatingAndScroll(){
 }
 
 function drawerSubmenuFor(tab){
+  if(bodySheetActive){
+    return [
+      {label:'Workouts', action: ()=> switchBodySection('workouts')},
+      {label:'Self Care Routines', action: ()=> switchBodySection('routines')},
+      {label:'Self Care Inventory', action: ()=> switchBodySection('inventory')}
+    ];
+  }
   if(tab === 'tracker' && categories.length){
     return categories.map(c=>({
       label: c.label,
@@ -2649,7 +2653,7 @@ function drawerSubmenuFor(tab){
 
 function showDrawerSubmenu(tab, items){
   const navBtn = document.querySelector(`.drawerNavItem[data-tab="${tab}"] span`);
-  document.getElementById('drawerSubTitle').textContent = navBtn ? navBtn.textContent : 'Menu';
+  document.getElementById('drawerSubTitle').textContent = bodySheetActive ? 'Body' : (navBtn ? navBtn.textContent : 'Menu');
   const el = document.getElementById('drawerSubItems');
   el.innerHTML = items.map((it,i)=>`<button class="drawerNavItem" data-i="${i}"><span>${escapeHtml(it.label)}</span></button>`).join('');
   el.querySelectorAll('.drawerNavItem').forEach(b=>{
@@ -2671,6 +2675,7 @@ function closeAllSheetsAndExtras(){
     const el = document.getElementById(id);
     if(el) el.style.display = 'none';
   });
+  bodySheetActive = false;
 }
 
 document.getElementById('drawerNavList').addEventListener('click', (e)=>{
@@ -3188,30 +3193,31 @@ function renderBodyAll(){
   renderBodySection('inventory');
 }
 
+const BODY_SECTION_TITLE = {workouts:'Workouts', routines:'Self Care Routines', inventory:'Self Care Inventory'};
+let bodySheetActive = false;
+
+function switchBodySection(section){
+  bodySubTab = section;
+  document.getElementById('bodySectionLabel').textContent = BODY_SECTION_TITLE[section];
+  document.getElementById('bodyWorkoutsView').style.display = section === 'workouts' ? 'block' : 'none';
+  document.getElementById('bodyRoutinesView').style.display = section === 'routines' ? 'block' : 'none';
+  document.getElementById('bodyInventoryView').style.display = section === 'inventory' ? 'block' : 'none';
+}
+
 function openBodyHome(){
-  bodySubTab = 'workouts';
-  document.querySelectorAll('#bodySubTabs button').forEach(b=> b.classList.toggle('sel', b.dataset.v==='workouts'));
-  document.getElementById('bodyWorkoutsView').style.display = 'block';
-  document.getElementById('bodyRoutinesView').style.display = 'none';
-  document.getElementById('bodyInventoryView').style.display = 'none';
+  bodySheetActive = true;
+  switchBodySection('workouts');
   renderBodyAll();
   blurActive();
   document.getElementById('bodyHomeOverlay').classList.add('open');
 }
-document.getElementById('bodyHomeClose').addEventListener('click', ()=>{
+function closeBodyHome(){
+  bodySheetActive = false;
   document.getElementById('bodyHomeOverlay').classList.remove('open');
-});
+}
+document.getElementById('bodyHomeClose').addEventListener('click', closeBodyHome);
 document.getElementById('bodyHomeOverlay').addEventListener('click', (e)=>{
-  if(e.target.id === 'bodyHomeOverlay') e.currentTarget.classList.remove('open');
-});
-document.getElementById('bodySubTabs').addEventListener('click', (e)=>{
-  const btn = e.target.closest('button[data-v]');
-  if(!btn) return;
-  bodySubTab = btn.dataset.v;
-  document.querySelectorAll('#bodySubTabs button').forEach(b=>b.classList.toggle('sel', b===btn));
-  document.getElementById('bodyWorkoutsView').style.display = bodySubTab === 'workouts' ? 'block' : 'none';
-  document.getElementById('bodyRoutinesView').style.display = bodySubTab === 'routines' ? 'block' : 'none';
-  document.getElementById('bodyInventoryView').style.display = bodySubTab === 'inventory' ? 'block' : 'none';
+  if(e.target.id === 'bodyHomeOverlay') closeBodyHome();
 });
 
 function renderBodyItemImagePreview(){
