@@ -1088,7 +1088,7 @@
   </div>
 </div>
 
-<div id="view-savings" class="view savingsTheme" style="display:none;">
+<div id="view-savings" class="view" style="display:none;">
   <div class="topbar">
     <h1>Savings</h1>
     <div class="tagline">save toward what you want</div>
@@ -1937,6 +1937,62 @@
   </div>
 </div>
 
+<div class="sheet-overlay" id="bodyHomeOverlay">
+  <div class="sheet">
+    <button class="sheetClose" id="bodyHomeClose">&times;</button>
+    <h2>Body</h2>
+    <div class="seg" id="bodySubTabs">
+      <button type="button" data-v="workouts" class="sel">Workouts</button>
+      <button type="button" data-v="routines">Self Care Routines</button>
+      <button type="button" data-v="inventory">Self Care Inventory</button>
+    </div>
+    <div id="bodyWorkoutsView" style="margin-top:18px;">
+      <div id="bodyWorkoutsList"></div>
+    </div>
+    <div id="bodyRoutinesView" style="display:none; margin-top:18px;">
+      <div id="bodyRoutinesList"></div>
+    </div>
+    <div id="bodyInventoryView" style="display:none; margin-top:18px;">
+      <div id="bodyInventoryList"></div>
+    </div>
+    <button type="button" class="fab" id="bodyItemAddBtn">+</button>
+  </div>
+</div>
+
+<div class="sheet-overlay" id="bodyItemOverlay">
+  <div class="sheet">
+    <button class="sheetClose" id="bodyItemCloseBtn">&times;</button>
+    <h2 id="bodyItemSheetTitle">Add Entry</h2>
+    <div class="field">
+      <label>Name</label>
+      <input type="text" id="bodyItemName" placeholder="e.g. Leg Day, Skincare Routine, Foam Roller">
+    </div>
+    <div class="field">
+      <label>Image (optional)</label>
+      <div id="bodyItemImgPreviewWrap"></div>
+      <input type="file" id="bodyItemImageInput" accept="image/*" style="display:none">
+      <div class="mediaBtnRow">
+        <button type="button" class="mediaBtn" id="bodyItemImageBtn">Choose Image</button>
+        <button type="button" class="mediaBtn removeBtn" id="bodyItemImageRemoveBtn" style="display:none;">Remove</button>
+      </div>
+    </div>
+    <div class="field" id="bodyItemAmountField" style="display:none;">
+      <label>Amount (optional)</label>
+      <input type="text" id="bodyItemAmount" placeholder="e.g. 2 bottles">
+    </div>
+    <div class="field">
+      <label>Notes</label>
+      <textarea id="bodyItemNotes" placeholder="Sets/reps, steps, details..."></textarea>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-save" id="bodyItemSave">Add</button>
+    </div>
+    <div class="sheet-actions" id="bodyItemDeleteRow" style="display:none;">
+      <button class="btn-delete" id="bodyItemDelete">Delete</button>
+    </div>
+  </div>
+</div>
+
 <div class="sheet-overlay" id="recipeOverlay">
   <div class="sheet">
     <h2 id="recipeSheetTitle">Add Recipe</h2>
@@ -2065,7 +2121,7 @@
   </div>
 </div>
 
-<div class="sheet-overlay savingsTheme" id="savingsGoalOverlay">
+<div class="sheet-overlay" id="savingsGoalOverlay">
   <div class="sheet">
     <h2 id="savingsGoalSheetTitle">Add Goal</h2>
     <div class="field">
@@ -2103,7 +2159,7 @@
   </div>
 </div>
 
-<div class="sheet-overlay savingsTheme" id="savingsDetailOverlay">
+<div class="sheet-overlay" id="savingsDetailOverlay">
   <div class="sheet">
     <div id="savingsDetailBanner" class="cdBanner"></div>
     <div class="field">
@@ -2211,6 +2267,7 @@ async function pushAllToCloud(){
       inventory: recipeInventory,
       groceries: groceryItems,
       ingredientLinkMemory,
+      bodyWorkouts, bodyRoutines, bodyInventory,
       recipes,
       datingPlaces,
       travelPlaces,
@@ -2242,6 +2299,9 @@ async function pullFromCloud(){
       if(data.inventory) recipeInventory = data.inventory;
       if(data.groceries) groceryItems = data.groceries;
       if(data.ingredientLinkMemory) ingredientLinkMemory = data.ingredientLinkMemory;
+      if(data.bodyWorkouts) bodyWorkouts = data.bodyWorkouts;
+      if(data.bodyRoutines) bodyRoutines = data.bodyRoutines;
+      if(data.bodyInventory) bodyInventory = data.bodyInventory;
       if(data.recipes) recipes = data.recipes;
       if(data.datingPlaces) datingPlaces = data.datingPlaces;
       if(data.travelPlaces) travelPlaces = data.travelPlaces;
@@ -2251,7 +2311,7 @@ async function pullFromCloud(){
         roadmapXP = data.level.xp || 0;
       }
       if(data.stats && data.stats.length) roadmapStats = data.stats;
-      await saveItems(); await saveCategories(); await saveCards(); await saveRewards(); await saveBuylist(); await saveBuylistCats(); await saveInfoCats(); await saveInventory(); await saveGroceries(); await saveIngredientLinkMemory(); await saveRecipes(); await saveDatingPlaces(); await saveTravelPlaces(); await saveSavings(); await saveLevel(); await saveStats();
+      await saveItems(); await saveCategories(); await saveCards(); await saveRewards(); await saveBuylist(); await saveBuylistCats(); await saveInfoCats(); await saveInventory(); await saveGroceries(); await saveIngredientLinkMemory(); await saveBodyWorkouts(); await saveBodyRoutines(); await saveBodyInventory(); await saveRecipes(); await saveDatingPlaces(); await saveTravelPlaces(); await saveSavings(); await saveLevel(); await saveStats();
       render(); renderGoals(); renderLevelPlaque(); renderRewards(); renderBuylist(); renderSavings(); renderInfoGrid();
     }else{
       await pushAllToCloud();
@@ -2355,6 +2415,9 @@ const INV_CATEGORIES = ['Seasonings','Meats','Pantry','Produce','Dairy','Other']
 let recipeInventory = [];
 let groceryItems = [];
 let ingredientLinkMemory = {};
+let bodyWorkouts = [];
+let bodyRoutines = [];
+let bodyInventory = [];
 let editingInvItemId = null;
 let invItemDraft = {name:'', category:'Pantry', amount:'', image:null};
 let editingGroceryId = null;
@@ -2511,6 +2574,7 @@ function exportAllData(){
     inventory: recipeInventory,
     groceries: groceryItems,
     ingredientLinkMemory,
+    bodyWorkouts, bodyRoutines, bodyInventory,
     recipes,
     datingPlaces,
     travelPlaces,
@@ -2653,6 +2717,9 @@ document.getElementById('importFileInput').addEventListener('change', async (e)=
     if(data.inventory) recipeInventory = data.inventory;
     if(data.groceries) groceryItems = data.groceries;
     if(data.ingredientLinkMemory) ingredientLinkMemory = data.ingredientLinkMemory;
+    if(data.bodyWorkouts) bodyWorkouts = data.bodyWorkouts;
+    if(data.bodyRoutines) bodyRoutines = data.bodyRoutines;
+    if(data.bodyInventory) bodyInventory = data.bodyInventory;
     if(data.recipes) recipes = data.recipes;
     if(data.datingPlaces) datingPlaces = data.datingPlaces;
     if(data.travelPlaces) travelPlaces = data.travelPlaces;
@@ -2665,7 +2732,7 @@ document.getElementById('importFileInput').addEventListener('change', async (e)=
 
     await saveItems(); await saveCategories(); await saveCards(); await saveRewards();
     await saveBuylist(); await saveBuylistCats(); await saveInfoCats();
-    await saveInventory(); await saveGroceries(); await saveIngredientLinkMemory(); await saveRecipes(); await saveDatingPlaces(); await saveTravelPlaces();
+    await saveInventory(); await saveGroceries(); await saveIngredientLinkMemory(); await saveBodyWorkouts(); await saveBodyRoutines(); await saveBodyInventory(); await saveRecipes(); await saveDatingPlaces(); await saveTravelPlaces();
     await saveSavings(); await saveLevel(); await saveStats();
 
     render(); renderGoals(); renderLevelPlaque(); renderRewards(); renderBuylist(); renderSavings(); renderInfoGrid();
@@ -2767,6 +2834,24 @@ async function loadAll(){
     ingredientLinkMemory = {};
   }
   try{
+    const res5f1 = await storageAdapter.get('tracker_body_workouts');
+    bodyWorkouts = res5f1 && res5f1.value ? JSON.parse(res5f1.value) : [];
+  }catch(e){
+    bodyWorkouts = [];
+  }
+  try{
+    const res5f2 = await storageAdapter.get('tracker_body_routines');
+    bodyRoutines = res5f2 && res5f2.value ? JSON.parse(res5f2.value) : [];
+  }catch(e){
+    bodyRoutines = [];
+  }
+  try{
+    const res5f3 = await storageAdapter.get('tracker_body_inventory');
+    bodyInventory = res5f3 && res5f3.value ? JSON.parse(res5f3.value) : [];
+  }catch(e){
+    bodyInventory = [];
+  }
+  try{
     const res5e = await storageAdapter.get('tracker_recipes');
     recipes = res5e && res5e.value ? JSON.parse(res5e.value) : [];
     recipes.forEach(r=>{ if(!r.ingredients) r.ingredients = []; });
@@ -2791,6 +2876,21 @@ async function loadAll(){
     savingsGoals.forEach(g=>{ if(!g.transactions) g.transactions = []; });
   }catch(e){
     savingsGoals = [];
+  }
+  {
+    const PERMANENT_SAVINGS_CATS = ['Bills', 'Traveling', 'Food', 'Business'];
+    let addedPermanent = false;
+    PERMANENT_SAVINGS_CATS.forEach((title, i)=>{
+      if(!savingsGoals.some(g=>g.title===title && g.permanent)){
+        savingsGoals.push({
+          id: uid('sv'), title, target: 0, current: 0,
+          image: null, color: SWATCHES[i % SWATCHES.length],
+          permanent: true, transactions: [], updatedAt: Date.now() - i
+        });
+        addedPermanent = true;
+      }
+    });
+    if(addedPermanent) await saveSavings();
   }
   try{
     const res7 = await storageAdapter.get('tracker_level');
@@ -2952,6 +3052,21 @@ async function saveIngredientLinkMemory(){
   }
   if(fbUser) pushAllToCloud();
 }
+async function saveBodyWorkouts(){
+  try{ await storageAdapter.set('tracker_body_workouts', JSON.stringify(bodyWorkouts)); }
+  catch(e){ console.error('Save failed', e); }
+  if(fbUser) pushAllToCloud();
+}
+async function saveBodyRoutines(){
+  try{ await storageAdapter.set('tracker_body_routines', JSON.stringify(bodyRoutines)); }
+  catch(e){ console.error('Save failed', e); }
+  if(fbUser) pushAllToCloud();
+}
+async function saveBodyInventory(){
+  try{ await storageAdapter.set('tracker_body_inventory', JSON.stringify(bodyInventory)); }
+  catch(e){ console.error('Save failed', e); }
+  if(fbUser) pushAllToCloud();
+}
 async function saveRecipes(){
   try{
     await storageAdapter.set('tracker_recipes', JSON.stringify(recipes));
@@ -2981,7 +3096,8 @@ async function saveTravelPlaces(){
 const PERMANENT_INFO_TILES = [
   {id:'recipes', name:'Recipes', icon:'🍛', color:'#b8705c'},
   {id:'dating', name:'Dating', icon:'💕', color:'#b85c8f'},
-  {id:'traveling', name:'Traveling', icon:'✈️', color:'#4a7ba6'}
+  {id:'traveling', name:'Traveling', icon:'✈️', color:'#4a7ba6'},
+  {id:'body', name:'Body', icon:'💪', color:'#5c8f6a'}
 ];
 
 function renderInfoGrid(){
@@ -3003,6 +3119,7 @@ function openInfoCatDetail(id){
   if(id === 'recipes'){ openRecipesHome(); return; }
   if(id === 'dating'){ openPlacesHome('dating'); return; }
   if(id === 'traveling'){ openPlacesHome('traveling'); return; }
+  if(id === 'body'){ openBodyHome(); return; }
   const cat = PERMANENT_INFO_TILES.find(c=>c.id===id);
   if(!cat) return;
   const banner = document.getElementById('infoCatDetailBanner');
@@ -3019,6 +3136,184 @@ document.getElementById('infoCatDetailClose').addEventListener('click', ()=>{
 });
 document.getElementById('infoCatDetailOverlay').addEventListener('click', (e)=>{
   if(e.target.id === 'infoCatDetailOverlay') e.currentTarget.classList.remove('open');
+});
+
+// ---- Body (Workouts / Self Care Routines / Self Care Inventory) ----
+let bodySubTab = 'workouts';
+let editingBodyItemId = null;
+let bodyItemDraft = {image: null};
+
+function bodyListFor(section){
+  if(section === 'routines') return bodyRoutines;
+  if(section === 'inventory') return bodyInventory;
+  return bodyWorkouts;
+}
+function bodySaveFnFor(section){
+  if(section === 'routines') return saveBodyRoutines;
+  if(section === 'inventory') return saveBodyInventory;
+  return saveBodyWorkouts;
+}
+function bodyEmptyCopy(section){
+  if(section === 'routines') return {big:'No routines yet', sub:'Tap + to log a self care routine.'};
+  if(section === 'inventory') return {big:'Nothing here yet', sub:'Tap + to add a self care item.'};
+  return {big:'No workouts yet', sub:'Tap + to log a workout.'};
+}
+
+function renderBodySection(section){
+  const el = document.getElementById(section === 'routines' ? 'bodyRoutinesList' : section === 'inventory' ? 'bodyInventoryList' : 'bodyWorkoutsList');
+  if(!el) return;
+  const list = bodyListFor(section).slice().sort((a,b)=> (b.updatedAt||0) - (a.updatedAt||0));
+  if(!list.length){
+    const copy = bodyEmptyCopy(section);
+    el.innerHTML = `<div class="empty" style="padding:20px 8px;"><div class="big" style="font-size:17px;">${copy.big}</div>${copy.sub}</div>`;
+    return;
+  }
+  el.innerHTML = list.map(it => `
+    <div class="invRow" data-id="${it.id}">
+      ${it.image ? `<img src="${it.image}" alt="" style="width:50px; height:50px; border-radius:10px; object-fit:cover; flex:0 0 50px;">` : ''}
+      <div style="flex:1; min-width:0;">
+        <span class="invRow-name">${escapeHtml(it.name)}</span>
+        ${it.notes ? `<div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-dim); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(it.notes)}</div>` : ''}
+      </div>
+      ${it.amount ? `<span class="invRow-amount">${escapeHtml(it.amount)}</span>` : ''}
+    </div>
+  `).join('');
+  el.querySelectorAll('.invRow').forEach(row=>{
+    row.addEventListener('click', ()=> openBodyItemEdit(bodySubTab, row.dataset.id));
+  });
+}
+function renderBodyAll(){
+  renderBodySection('workouts');
+  renderBodySection('routines');
+  renderBodySection('inventory');
+}
+
+function openBodyHome(){
+  bodySubTab = 'workouts';
+  document.querySelectorAll('#bodySubTabs button').forEach(b=> b.classList.toggle('sel', b.dataset.v==='workouts'));
+  document.getElementById('bodyWorkoutsView').style.display = 'block';
+  document.getElementById('bodyRoutinesView').style.display = 'none';
+  document.getElementById('bodyInventoryView').style.display = 'none';
+  renderBodyAll();
+  blurActive();
+  document.getElementById('bodyHomeOverlay').classList.add('open');
+}
+document.getElementById('bodyHomeClose').addEventListener('click', ()=>{
+  document.getElementById('bodyHomeOverlay').classList.remove('open');
+});
+document.getElementById('bodyHomeOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'bodyHomeOverlay') e.currentTarget.classList.remove('open');
+});
+document.getElementById('bodySubTabs').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button[data-v]');
+  if(!btn) return;
+  bodySubTab = btn.dataset.v;
+  document.querySelectorAll('#bodySubTabs button').forEach(b=>b.classList.toggle('sel', b===btn));
+  document.getElementById('bodyWorkoutsView').style.display = bodySubTab === 'workouts' ? 'block' : 'none';
+  document.getElementById('bodyRoutinesView').style.display = bodySubTab === 'routines' ? 'block' : 'none';
+  document.getElementById('bodyInventoryView').style.display = bodySubTab === 'inventory' ? 'block' : 'none';
+});
+
+function renderBodyItemImagePreview(){
+  const wrap = document.getElementById('bodyItemImgPreviewWrap');
+  const removeBtn = document.getElementById('bodyItemImageRemoveBtn');
+  if(bodyItemDraft.image){
+    wrap.innerHTML = `<img class="imgPreview" src="${bodyItemDraft.image}" alt="">`;
+    removeBtn.style.display = 'inline-block';
+  }else{
+    wrap.innerHTML = '';
+    removeBtn.style.display = 'none';
+  }
+}
+document.getElementById('bodyItemImageBtn').addEventListener('click', ()=>{
+  document.getElementById('bodyItemImageInput').click();
+});
+document.getElementById('bodyItemImageInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  try{
+    bodyItemDraft.image = await fileToCompressedDataUrl(file);
+    renderBodyItemImagePreview();
+  }catch(err){ console.error('Image processing failed', err); }
+  e.target.value = '';
+});
+document.getElementById('bodyItemImageRemoveBtn').addEventListener('click', ()=>{
+  bodyItemDraft.image = null;
+  renderBodyItemImagePreview();
+});
+
+const BODY_SECTION_LABEL = {workouts:'Workout', routines:'Routine', inventory:'Item'};
+
+function openBodyItemAdd(){
+  editingBodyItemId = null;
+  bodyItemDraft = {image: null};
+  document.getElementById('bodyItemSheetTitle').textContent = 'Add ' + BODY_SECTION_LABEL[bodySubTab];
+  document.getElementById('bodyItemName').value = '';
+  document.getElementById('bodyItemAmount').value = '';
+  document.getElementById('bodyItemNotes').value = '';
+  document.getElementById('bodyItemAmountField').style.display = bodySubTab === 'inventory' ? 'block' : 'none';
+  document.getElementById('bodyItemSave').textContent = 'Add';
+  document.getElementById('bodyItemDeleteRow').style.display = 'none';
+  renderBodyItemImagePreview();
+  blurActive();
+  document.getElementById('bodyItemOverlay').classList.add('open');
+}
+document.getElementById('bodyItemAddBtn').addEventListener('click', openBodyItemAdd);
+
+function openBodyItemEdit(section, id){
+  const item = bodyListFor(section).find(it=>it.id===id);
+  if(!item) return;
+  editingBodyItemId = id;
+  bodyItemDraft = {image: item.image || null};
+  document.getElementById('bodyItemSheetTitle').textContent = 'Edit ' + BODY_SECTION_LABEL[section];
+  document.getElementById('bodyItemName').value = item.name;
+  document.getElementById('bodyItemAmount').value = item.amount || '';
+  document.getElementById('bodyItemNotes').value = item.notes || '';
+  document.getElementById('bodyItemAmountField').style.display = section === 'inventory' ? 'block' : 'none';
+  document.getElementById('bodyItemSave').textContent = 'Save';
+  document.getElementById('bodyItemDeleteRow').style.display = 'flex';
+  renderBodyItemImagePreview();
+  blurActive();
+  document.getElementById('bodyItemOverlay').classList.add('open');
+}
+
+document.getElementById('bodyItemCloseBtn').addEventListener('click', ()=>{
+  document.getElementById('bodyItemOverlay').classList.remove('open');
+});
+document.getElementById('bodyItemOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'bodyItemOverlay') e.currentTarget.classList.remove('open');
+});
+
+document.getElementById('bodyItemSave').addEventListener('click', async ()=>{
+  const name = document.getElementById('bodyItemName').value.trim();
+  if(!name){ document.getElementById('bodyItemName').focus(); return; }
+  const amount = document.getElementById('bodyItemAmount').value.trim();
+  const notes = document.getElementById('bodyItemNotes').value.trim();
+  const list = bodyListFor(bodySubTab);
+  const saveFn = bodySaveFnFor(bodySubTab);
+
+  if(editingBodyItemId){
+    const item = list.find(it=>it.id===editingBodyItemId);
+    item.name = name; item.amount = amount; item.notes = notes;
+    item.image = bodyItemDraft.image || null;
+    item.updatedAt = Date.now();
+  }else{
+    list.push({id: uid('bd'), name, amount, notes, image: bodyItemDraft.image || null, updatedAt: Date.now()});
+  }
+  await saveFn();
+  document.getElementById('bodyItemOverlay').classList.remove('open');
+  renderBodySection(bodySubTab);
+});
+
+document.getElementById('bodyItemDelete').addEventListener('click', async ()=>{
+  if(!editingBodyItemId) return;
+  const list = bodyListFor(bodySubTab);
+  const saveFn = bodySaveFnFor(bodySubTab);
+  const idx = list.findIndex(it=>it.id===editingBodyItemId);
+  if(idx > -1) list.splice(idx, 1);
+  await saveFn();
+  document.getElementById('bodyItemOverlay').classList.remove('open');
+  renderBodySection(bodySubTab);
 });
 
 // ---- Recipes & Ingredient Inventory ----
@@ -5697,7 +5992,7 @@ function switchTab(tab){
   document.querySelectorAll('.navBtn').forEach(b=>{
     b.classList.toggle('active', b.dataset.tab === tab);
   });
-  fabBtn.style.display = (tab === 'tracker' || tab === 'roadmaps' || tab === 'buylist' || tab === 'savings') ? 'flex' : 'none';
+  fabBtn.style.display = (tab === 'tracker' || tab === 'roadmaps' || tab === 'buylist') ? 'flex' : 'none';
   if(tab === 'calendar'){
     const placesBlock = document.getElementById('calPlacesBlock');
     if(placesBlock) placesBlock.style.display = 'none';
@@ -7259,7 +7554,7 @@ function renderSavings(){
   const plaque = document.getElementById('savingsPlaque');
   const total = savingsGoals.reduce((sum,g)=> sum + (Number(g.current)||0), 0);
   if(plaque){
-    plaque.innerHTML = `<div class="num">${fmtMoney(total)}</div><div class="lbl">Total Saved</div>`;
+    plaque.innerHTML = `<div class="num">${fmtMoney(total)}</div><div class="lbl">Balance</div>`;
   }
   if(!savingsGoals.length){
     savingsGoalsListEl.innerHTML = `<div class="empty"><div class="big">No goals yet</div>Tap + to start saving toward something.</div>`;
@@ -7311,7 +7606,7 @@ function openSavingsGoalEdit(id){
   document.getElementById('savingsGoalSheetTitle').textContent = 'Edit Goal';
   document.getElementById('sgTitle').value = goal.title;
   document.getElementById('sgTarget').value = String(goal.target || '');
-  document.getElementById('sgDeleteRow').style.display = 'flex';
+  document.getElementById('sgDeleteRow').style.display = goal.permanent ? 'none' : 'flex';
   renderSavingsImagePreview();
   renderSavingsColorGrid();
   blurActive();
@@ -7726,7 +8021,6 @@ document.getElementById('fabAdd').addEventListener('click', ()=>{
   if(currentTab === 'roadmaps') openCardAdd();
   else if(currentTab === 'rewards') openRewardAdd();
   else if(currentTab === 'buylist') openBuylistAdd();
-  else if(currentTab === 'savings') openSavingsGoalAdd();
   else openAdd();
 });
 document.getElementById('btnCancel').addEventListener('click', ()=> overlay.classList.remove('open'));
