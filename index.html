@@ -617,6 +617,29 @@
   .recipeCard-title{font-size:15px; font-weight:600; color:var(--ink); flex:1;}
   .recipeCard-meta{font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); margin-top:2px;}
 
+  .bwExCard{
+    border:1.5px solid var(--line); border-radius:14px; background:linear-gradient(180deg, var(--card) 0%, var(--paper) 100%);
+    box-shadow:0 3px 8px rgba(28,30,38,0.06); padding:12px 14px; margin-bottom:12px;
+  }
+  .bwExCard-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px;}
+  .bwExCard-title{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:16px; color:var(--ink);}
+  .bwExCard-remove{background:none; border:none; color:var(--rose); font-size:18px; cursor:pointer; padding:2px 6px; line-height:1;}
+  .bwExCard-last{font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); margin-bottom:10px;}
+  .bwSetRow{display:grid; grid-template-columns:28px 1fr 1fr 26px; gap:8px; align-items:center; margin-bottom:6px;}
+  .bwSetRow-num{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); text-align:center;}
+  .bwSetRow input{
+    width:100%; box-sizing:border-box; padding:8px 10px; border:1.5px solid var(--line); border-radius:10px;
+    background:var(--card); font-family:'Inter',sans-serif; font-size:14px; color:var(--text); outline:none; text-align:center;
+  }
+  .bwSetRow input:focus{border-color:var(--amber);}
+  .bwSetRow-del{background:none; border:none; color:var(--rose); font-size:16px; cursor:pointer; padding:2px;}
+  .bwAddSetBtn{
+    width:100%; margin-top:4px; padding:8px; border:1.5px dashed var(--line); border-radius:10px; background:none;
+    color:var(--text-dim); font-family:'JetBrains Mono',monospace; font-size:10.5px; text-transform:uppercase; cursor:pointer;
+  }
+  .bwSetLabels{display:grid; grid-template-columns:28px 1fr 1fr 26px; gap:8px; margin-bottom:4px;}
+  .bwSetLabels span{font-family:'JetBrains Mono',monospace; font-size:9px; text-transform:uppercase; color:var(--muted); text-align:center;}
+
   .ingRow{
     display:flex; align-items:center; gap:8px; padding:10px 12px; margin-bottom:6px;
     border:1.5px solid var(--line); border-radius:12px; background:linear-gradient(180deg, var(--card) 0%, var(--paper) 100%);
@@ -1990,6 +2013,50 @@
   </div>
 </div>
 
+<div class="sheet-overlay" id="bodyWorkoutEditorOverlay">
+  <div class="sheet">
+    <button class="sheetClose" id="bwCloseBtn">&times;</button>
+    <h2 id="bwSheetTitle">Log Workout</h2>
+    <div class="field">
+      <label>Title</label>
+      <input type="text" id="bwTitle" placeholder="e.g. Chest & Triceps Day">
+    </div>
+    <div class="field">
+      <label>Date</label>
+      <input type="date" id="bwDate">
+    </div>
+    <div class="field">
+      <label>Exercises</label>
+      <div id="bwExerciseList"></div>
+      <button type="button" class="mediaBtn" id="bwAddExerciseBtn" style="width:100%; margin-top:6px;">+ Add Exercise</button>
+    </div>
+    <div class="field">
+      <label>Notes (optional)</label>
+      <textarea id="bwNotes" placeholder="How it felt, what to improve next time..."></textarea>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-save" id="bwSave">Save Workout</button>
+    </div>
+    <div class="sheet-actions" id="bwDeleteRow" style="display:none;">
+      <button class="btn-delete" id="bwDelete">Delete Workout</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet-overlay" id="bodyExercisePickerOverlay">
+  <div class="sheet">
+    <button class="sheetClose" id="bepCloseBtn">&times;</button>
+    <h2>Add Exercise</h2>
+    <div class="search" style="margin-bottom:6px;">
+      <input type="text" id="bepSearch" placeholder="Search exercises...">
+    </div>
+    <div id="bepCreateRow" style="display:none; margin-bottom:14px;">
+      <button type="button" class="mediaBtn" id="bepCreateBtn" style="width:100%;"></button>
+    </div>
+    <div id="bepList"></div>
+  </div>
+</div>
+
 <div class="sheet-overlay" id="recipeOverlay">
   <div class="sheet">
     <h2 id="recipeSheetTitle">Add Recipe</h2>
@@ -2264,7 +2331,7 @@ async function pushAllToCloud(){
       inventory: recipeInventory,
       groceries: groceryItems,
       ingredientLinkMemory,
-      bodyWorkouts, bodyRoutines, bodyInventory,
+      bodyWorkouts, bodyExercises, bodyRoutines, bodyInventory,
       recipes,
       datingPlaces,
       travelPlaces,
@@ -2297,6 +2364,7 @@ async function pullFromCloud(){
       if(data.groceries) groceryItems = data.groceries;
       if(data.ingredientLinkMemory) ingredientLinkMemory = data.ingredientLinkMemory;
       if(data.bodyWorkouts) bodyWorkouts = data.bodyWorkouts;
+      if(data.bodyExercises) bodyExercises = data.bodyExercises;
       if(data.bodyRoutines) bodyRoutines = data.bodyRoutines;
       if(data.bodyInventory) bodyInventory = data.bodyInventory;
       if(data.recipes) recipes = data.recipes;
@@ -2308,7 +2376,7 @@ async function pullFromCloud(){
         roadmapXP = data.level.xp || 0;
       }
       if(data.stats && data.stats.length) roadmapStats = data.stats;
-      await saveItems(); await saveCategories(); await saveCards(); await saveRewards(); await saveBuylist(); await saveBuylistCats(); await saveInfoCats(); await saveInventory(); await saveGroceries(); await saveIngredientLinkMemory(); await saveBodyWorkouts(); await saveBodyRoutines(); await saveBodyInventory(); await saveRecipes(); await saveDatingPlaces(); await saveTravelPlaces(); await saveSavings(); await saveLevel(); await saveStats();
+      await saveItems(); await saveCategories(); await saveCards(); await saveRewards(); await saveBuylist(); await saveBuylistCats(); await saveInfoCats(); await saveInventory(); await saveGroceries(); await saveIngredientLinkMemory(); await saveBodyWorkouts(); await saveBodyExercises(); await saveBodyRoutines(); await saveBodyInventory(); await saveRecipes(); await saveDatingPlaces(); await saveTravelPlaces(); await saveSavings(); await saveLevel(); await saveStats();
       render(); renderGoals(); renderLevelPlaque(); renderRewards(); renderBuylist(); renderSavings(); renderInfoGrid();
     }else{
       await pushAllToCloud();
@@ -2413,6 +2481,7 @@ let recipeInventory = [];
 let groceryItems = [];
 let ingredientLinkMemory = {};
 let bodyWorkouts = [];
+let bodyExercises = [];
 let bodyRoutines = [];
 let bodyInventory = [];
 let editingInvItemId = null;
@@ -2571,7 +2640,7 @@ function exportAllData(){
     inventory: recipeInventory,
     groceries: groceryItems,
     ingredientLinkMemory,
-    bodyWorkouts, bodyRoutines, bodyInventory,
+    bodyWorkouts, bodyExercises, bodyRoutines, bodyInventory,
     recipes,
     datingPlaces,
     travelPlaces,
@@ -2723,6 +2792,7 @@ document.getElementById('importFileInput').addEventListener('change', async (e)=
     if(data.groceries) groceryItems = data.groceries;
     if(data.ingredientLinkMemory) ingredientLinkMemory = data.ingredientLinkMemory;
     if(data.bodyWorkouts) bodyWorkouts = data.bodyWorkouts;
+    if(data.bodyExercises) bodyExercises = data.bodyExercises;
     if(data.bodyRoutines) bodyRoutines = data.bodyRoutines;
     if(data.bodyInventory) bodyInventory = data.bodyInventory;
     if(data.recipes) recipes = data.recipes;
@@ -2737,7 +2807,7 @@ document.getElementById('importFileInput').addEventListener('change', async (e)=
 
     await saveItems(); await saveCategories(); await saveCards(); await saveRewards();
     await saveBuylist(); await saveBuylistCats(); await saveInfoCats();
-    await saveInventory(); await saveGroceries(); await saveIngredientLinkMemory(); await saveBodyWorkouts(); await saveBodyRoutines(); await saveBodyInventory(); await saveRecipes(); await saveDatingPlaces(); await saveTravelPlaces();
+    await saveInventory(); await saveGroceries(); await saveIngredientLinkMemory(); await saveBodyWorkouts(); await saveBodyExercises(); await saveBodyRoutines(); await saveBodyInventory(); await saveRecipes(); await saveDatingPlaces(); await saveTravelPlaces();
     await saveSavings(); await saveLevel(); await saveStats();
 
     render(); renderGoals(); renderLevelPlaque(); renderRewards(); renderBuylist(); renderSavings(); renderInfoGrid();
@@ -2843,6 +2913,12 @@ async function loadAll(){
     bodyWorkouts = res5f1 && res5f1.value ? JSON.parse(res5f1.value) : [];
   }catch(e){
     bodyWorkouts = [];
+  }
+  try{
+    const res5f0 = await storageAdapter.get('tracker_body_exercises');
+    bodyExercises = res5f0 && res5f0.value ? JSON.parse(res5f0.value) : [];
+  }catch(e){
+    bodyExercises = [];
   }
   try{
     const res5f2 = await storageAdapter.get('tracker_body_routines');
@@ -3062,6 +3138,11 @@ async function saveBodyWorkouts(){
   catch(e){ console.error('Save failed', e); }
   if(fbUser) pushAllToCloud();
 }
+async function saveBodyExercises(){
+  try{ await storageAdapter.set('tracker_body_exercises', JSON.stringify(bodyExercises)); }
+  catch(e){ console.error('Save failed', e); }
+  if(fbUser) pushAllToCloud();
+}
 async function saveBodyRoutines(){
   try{ await storageAdapter.set('tracker_body_routines', JSON.stringify(bodyRoutines)); }
   catch(e){ console.error('Save failed', e); }
@@ -3165,7 +3246,8 @@ function bodyEmptyCopy(section){
 }
 
 function renderBodySection(section){
-  const el = document.getElementById(section === 'routines' ? 'bodyRoutinesList' : section === 'inventory' ? 'bodyInventoryList' : 'bodyWorkoutsList');
+  if(section === 'workouts'){ renderBodyWorkoutsList(); return; }
+  const el = document.getElementById(section === 'routines' ? 'bodyRoutinesList' : 'bodyInventoryList');
   if(!el) return;
   const list = bodyListFor(section).slice().sort((a,b)=> (b.updatedAt||0) - (a.updatedAt||0));
   if(!list.length){
@@ -3187,6 +3269,45 @@ function renderBodySection(section){
     row.addEventListener('click', ()=> openBodyItemEdit(bodySubTab, row.dataset.id));
   });
 }
+
+function workoutSetVolume(w){
+  let sets = 0, vol = 0;
+  (w.exercises||[]).forEach(ex=>{
+    (ex.sets||[]).forEach(s=>{
+      sets++;
+      vol += (Number(s.weight)||0) * (Number(s.reps)||0);
+    });
+  });
+  return {sets, vol};
+}
+
+function renderBodyWorkoutsList(){
+  const el = document.getElementById('bodyWorkoutsList');
+  if(!el) return;
+  const list = bodyWorkouts.slice().sort((a,b)=> (b.date||'').localeCompare(a.date||'') || (b.updatedAt||0) - (a.updatedAt||0));
+  if(!list.length){
+    const copy = bodyEmptyCopy('workouts');
+    el.innerHTML = `<div class="empty" style="padding:20px 8px;"><div class="big" style="font-size:17px;">${copy.big}</div>${copy.sub}</div>`;
+    return;
+  }
+  el.innerHTML = list.map(w=>{
+    const {sets, vol} = workoutSetVolume(w);
+    const exNames = (w.exercises||[]).map(ex=>ex.name).join(', ');
+    return `
+    <div class="invRow" data-id="${w.id}" style="align-items:flex-start;">
+      <div style="flex:1; min-width:0;">
+        <span class="invRow-name">${escapeHtml(w.title || 'Workout')}</span>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); margin-top:2px;">${escapeHtml(w.date||'')} \u2022 ${(w.exercises||[]).length} exercises \u2022 ${sets} sets${vol ? ' \u2022 ' + vol.toLocaleString() + ' kg vol' : ''}</div>
+        ${exNames ? `<div style="font-size:12px; color:var(--muted); margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(exNames)}</div>` : ''}
+      </div>
+    </div>
+  `;
+  }).join('');
+  el.querySelectorAll('.invRow').forEach(row=>{
+    row.addEventListener('click', ()=> openBodyWorkoutEditor(row.dataset.id));
+  });
+}
+
 function renderBodyAll(){
   renderBodySection('workouts');
   renderBodySection('routines');
@@ -3264,7 +3385,10 @@ function openBodyItemAdd(){
   blurActive();
   document.getElementById('bodyItemOverlay').classList.add('open');
 }
-document.getElementById('bodyItemAddBtn').addEventListener('click', openBodyItemAdd);
+document.getElementById('bodyItemAddBtn').addEventListener('click', ()=>{
+  if(bodySubTab === 'workouts') openBodyWorkoutEditor(null);
+  else openBodyItemAdd();
+});
 
 function openBodyItemEdit(section, id){
   const item = bodyListFor(section).find(it=>it.id===id);
@@ -3322,7 +3446,211 @@ document.getElementById('bodyItemDelete').addEventListener('click', async ()=>{
   renderBodySection(bodySubTab);
 });
 
-// ---- Recipes & Ingredient Inventory ----
+// ---- Structured Workout logging (exercises + sets, with "last time" reference) ----
+let editingBodyWorkoutId = null;
+let bodyWorkoutDraft = null;
+
+function lastSetsFor(exerciseId, excludeWorkoutId){
+  const past = bodyWorkouts
+    .filter(w => w.id !== excludeWorkoutId && (w.exercises||[]).some(ex=>ex.exerciseId===exerciseId))
+    .sort((a,b)=> (b.date||'').localeCompare(a.date||'') || (b.updatedAt||0) - (a.updatedAt||0));
+  if(!past.length) return null;
+  const ex = past[0].exercises.find(e=>e.exerciseId===exerciseId);
+  return (ex && ex.sets && ex.sets.length) ? ex.sets : null;
+}
+
+function renderBwExercises(){
+  const el = document.getElementById('bwExerciseList');
+  if(!bodyWorkoutDraft.exercises.length){
+    el.innerHTML = `<div class="tagline" style="margin:4px 0 10px;">No exercises yet — tap + Add Exercise below.</div>`;
+    return;
+  }
+  el.innerHTML = bodyWorkoutDraft.exercises.map((ex, exi)=>{
+    const lastSets = lastSetsFor(ex.exerciseId, editingBodyWorkoutId);
+    const lastText = lastSets ? lastSets.map(s=>`${s.weight||0}kg\u00d7${s.reps||0}`).join(', ') : null;
+    const setsHtml = ex.sets.map((s, si)=>`
+      <div class="bwSetRow" data-exi="${exi}" data-si="${si}">
+        <span class="bwSetRow-num">${si+1}</span>
+        <input type="number" inputmode="decimal" class="bwWeightInput" placeholder="kg" value="${s.weight===''||s.weight===undefined?'':s.weight}">
+        <input type="number" inputmode="numeric" class="bwRepsInput" placeholder="reps" value="${s.reps===''||s.reps===undefined?'':s.reps}">
+        <button type="button" class="bwSetRow-del">&times;</button>
+      </div>
+    `).join('');
+    return `
+    <div class="bwExCard" data-exi="${exi}">
+      <div class="bwExCard-head">
+        <span class="bwExCard-title">${escapeHtml(ex.name)}</span>
+        <button type="button" class="bwExCard-remove" data-exi="${exi}">&times;</button>
+      </div>
+      ${lastText ? `<div class="bwExCard-last">Last: ${escapeHtml(lastText)}</div>` : ''}
+      ${ex.sets.length ? `<div class="bwSetLabels"><span></span><span>KG</span><span>Reps</span><span></span></div>` : ''}
+      ${setsHtml}
+      <button type="button" class="bwAddSetBtn" data-exi="${exi}">+ Add Set</button>
+    </div>
+  `;
+  }).join('');
+
+  el.querySelectorAll('.bwExCard-remove').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      bodyWorkoutDraft.exercises.splice(Number(b.dataset.exi), 1);
+      renderBwExercises();
+    });
+  });
+  el.querySelectorAll('.bwAddSetBtn').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const exi = Number(b.dataset.exi);
+      const sets = bodyWorkoutDraft.exercises[exi].sets;
+      const prev = sets[sets.length-1];
+      sets.push({weight: prev ? prev.weight : '', reps: prev ? prev.reps : ''});
+      renderBwExercises();
+    });
+  });
+  el.querySelectorAll('.bwSetRow-del').forEach(b=>{
+    b.addEventListener('click', (e)=>{
+      const row = e.target.closest('.bwSetRow');
+      bodyWorkoutDraft.exercises[Number(row.dataset.exi)].sets.splice(Number(row.dataset.si), 1);
+      renderBwExercises();
+    });
+  });
+  el.querySelectorAll('.bwWeightInput').forEach(inp=>{
+    inp.addEventListener('input', (e)=>{
+      const row = e.target.closest('.bwSetRow');
+      bodyWorkoutDraft.exercises[Number(row.dataset.exi)].sets[Number(row.dataset.si)].weight = e.target.value;
+    });
+  });
+  el.querySelectorAll('.bwRepsInput').forEach(inp=>{
+    inp.addEventListener('input', (e)=>{
+      const row = e.target.closest('.bwSetRow');
+      bodyWorkoutDraft.exercises[Number(row.dataset.exi)].sets[Number(row.dataset.si)].reps = e.target.value;
+    });
+  });
+}
+
+function todayISODate(){
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function openBodyWorkoutEditor(id){
+  if(id){
+    const w = bodyWorkouts.find(x=>x.id===id);
+    if(!w) return;
+    editingBodyWorkoutId = id;
+    bodyWorkoutDraft = JSON.parse(JSON.stringify(w));
+    document.getElementById('bwSheetTitle').textContent = 'Edit Workout';
+    document.getElementById('bwSave').textContent = 'Save Workout';
+    document.getElementById('bwDeleteRow').style.display = 'flex';
+  }else{
+    editingBodyWorkoutId = null;
+    bodyWorkoutDraft = {id: uid('bw'), title:'', date: todayISODate(), exercises: [], notes: ''};
+    document.getElementById('bwSheetTitle').textContent = 'Log Workout';
+    document.getElementById('bwSave').textContent = 'Save Workout';
+    document.getElementById('bwDeleteRow').style.display = 'none';
+  }
+  document.getElementById('bwTitle').value = bodyWorkoutDraft.title || '';
+  document.getElementById('bwDate').value = bodyWorkoutDraft.date || todayISODate();
+  document.getElementById('bwNotes').value = bodyWorkoutDraft.notes || '';
+  renderBwExercises();
+  blurActive();
+  document.getElementById('bodyWorkoutEditorOverlay').classList.add('open');
+}
+function closeBodyWorkoutEditor(){
+  document.getElementById('bodyWorkoutEditorOverlay').classList.remove('open');
+}
+document.getElementById('bwCloseBtn').addEventListener('click', closeBodyWorkoutEditor);
+document.getElementById('bodyWorkoutEditorOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'bodyWorkoutEditorOverlay') closeBodyWorkoutEditor();
+});
+
+document.getElementById('bwSave').addEventListener('click', async ()=>{
+  bodyWorkoutDraft.title = document.getElementById('bwTitle').value.trim() || 'Workout';
+  bodyWorkoutDraft.date = document.getElementById('bwDate').value || todayISODate();
+  bodyWorkoutDraft.notes = document.getElementById('bwNotes').value.trim();
+  bodyWorkoutDraft.exercises.forEach(ex=>{
+    ex.sets = ex.sets.map(s=>({weight: Number(s.weight)||0, reps: Number(s.reps)||0}));
+  });
+  bodyWorkoutDraft.updatedAt = Date.now();
+
+  if(editingBodyWorkoutId){
+    const idx = bodyWorkouts.findIndex(w=>w.id===editingBodyWorkoutId);
+    if(idx > -1) bodyWorkouts[idx] = bodyWorkoutDraft;
+  }else{
+    bodyWorkouts.push(bodyWorkoutDraft);
+  }
+  await saveBodyWorkouts();
+  closeBodyWorkoutEditor();
+  renderBodyWorkoutsList();
+});
+
+document.getElementById('bwDelete').addEventListener('click', async ()=>{
+  if(!editingBodyWorkoutId) return;
+  bodyWorkouts = bodyWorkouts.filter(w=>w.id!==editingBodyWorkoutId);
+  await saveBodyWorkouts();
+  closeBodyWorkoutEditor();
+  renderBodyWorkoutsList();
+});
+
+// -- Exercise picker (search existing library, or create new) --
+document.getElementById('bwAddExerciseBtn').addEventListener('click', ()=>{
+  document.getElementById('bepSearch').value = '';
+  renderExercisePicker('');
+  document.getElementById('bodyExercisePickerOverlay').classList.add('open');
+  document.getElementById('bepSearch').focus();
+});
+document.getElementById('bepCloseBtn').addEventListener('click', ()=>{
+  document.getElementById('bodyExercisePickerOverlay').classList.remove('open');
+});
+document.getElementById('bodyExercisePickerOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'bodyExercisePickerOverlay') document.getElementById('bodyExercisePickerOverlay').classList.remove('open');
+});
+
+function addExerciseToDraft(exercise){
+  bodyWorkoutDraft.exercises.push({exerciseId: exercise.id, name: exercise.name, sets: [{weight:'', reps:''}]});
+  renderBwExercises();
+  document.getElementById('bodyExercisePickerOverlay').classList.remove('open');
+}
+
+async function createAndAddExercise(name){
+  name = name.trim();
+  if(!name) return;
+  const exercise = {id: uid('bex'), name};
+  bodyExercises.push(exercise);
+  await saveBodyExercises();
+  addExerciseToDraft(exercise);
+}
+
+function renderExercisePicker(query){
+  const el = document.getElementById('bepList');
+  const createRow = document.getElementById('bepCreateRow');
+  const createBtn = document.getElementById('bepCreateBtn');
+  const q = query.trim().toLowerCase();
+  const matches = bodyExercises.filter(ex=> !q || ex.name.toLowerCase().includes(q))
+    .sort((a,b)=> a.name.localeCompare(b.name));
+
+  const exactMatch = bodyExercises.some(ex=> ex.name.toLowerCase() === q);
+  if(q && !exactMatch){
+    createRow.style.display = 'block';
+    createBtn.textContent = `+ Create "${query.trim()}"`;
+  }else{
+    createRow.style.display = 'none';
+  }
+  createBtn.onclick = ()=> createAndAddExercise(query.trim());
+
+  if(!matches.length){
+    el.innerHTML = `<div class="tagline" style="margin:6px 0;">${bodyExercises.length ? 'No matches.' : 'No exercises yet — create one above.'}</div>`;
+    return;
+  }
+  el.innerHTML = matches.map(ex=> `<div class="invRow" data-id="${ex.id}"><span class="invRow-name">${escapeHtml(ex.name)}</span></div>`).join('');
+  el.querySelectorAll('.invRow').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      const exercise = bodyExercises.find(ex=>ex.id===row.dataset.id);
+      if(exercise) addExerciseToDraft(exercise);
+    });
+  });
+}
+document.getElementById('bepSearch').addEventListener('input', (e)=> renderExercisePicker(e.target.value));
+
+
 function normalizeIngredientWord(w){
   w = w.toLowerCase().replace(/[^a-z]/g, '');
   if(w.endsWith('ies') && w.length > 4) w = w.slice(0, -3) + 'y';
@@ -5903,6 +6231,21 @@ function render(){
 // ---- Episode quick counter (long-press on an Anime card) ----
 let episodeCounterId = null;
 
+async function deleteTrackerItem(id){
+  items = items.filter(i=>i.id!==id);
+  if(overlay.classList.contains('open') && editingId===id) overlay.classList.remove('open');
+  render();
+  await saveItems();
+}
+
+function promptItemCompletion(item){
+  setTimeout(()=>{
+    if(confirm(`You finished "${item.title}"! Remove it from your tracker?`)){
+      deleteTrackerItem(item.id);
+    }
+  }, 250);
+}
+
 function openEpisodeCounter(id){
   const item = items.find(i=>i.id===id);
   if(!item) return;
@@ -5923,6 +6266,7 @@ function renderEpisodeCounter(){
 async function adjustEpisode(delta){
   const item = items.find(i=>i.id===episodeCounterId);
   if(!item) return;
+  const wasComplete = item.epTotal > 0 && (item.epCurrent || 0) >= item.epTotal;
   let next = (item.epCurrent || 0) + delta;
   if(next < 0) next = 0;
   if(item.epTotal > 0 && next > item.epTotal) next = item.epTotal;
@@ -5931,6 +6275,9 @@ async function adjustEpisode(delta){
   renderEpisodeCounter();
   render();
   await saveItems();
+  if(!wasComplete && item.epTotal > 0 && item.epCurrent >= item.epTotal){
+    promptItemCompletion(item);
+  }
 }
 
 document.getElementById('epMinusBtn').addEventListener('click', ()=> adjustEpisode(-1));
@@ -5965,12 +6312,16 @@ function renderGameProgress(){
 async function setGamePercent(pct){
   const item = items.find(i=>i.id===gameProgressId);
   if(!item) return;
+  const wasComplete = (item.gamePercent || 0) >= 100;
   item.gamePercent = Math.max(0, Math.min(100, pct));
   item.updatedAt = Date.now();
   document.getElementById('gpSlider').value = item.gamePercent;
   renderGameProgress();
   render();
   await saveItems();
+  if(!wasComplete && item.gamePercent >= 100){
+    promptItemCompletion(item);
+  }
 }
 
 document.getElementById('gpSlider').addEventListener('input', (e)=>{
